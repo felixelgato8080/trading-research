@@ -61,8 +61,7 @@ async function main(): Promise<void> {
   const tope = txt("tope", "8");
 
   // El directorio del estado tiene que existir. En Railway es el volumen montado.
-  const dir = dirname(estado);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
 
 
 
@@ -78,6 +77,13 @@ async function main(): Promise<void> {
   // 451— no arrancaba nada.
   const tareas: Tarea[] = [];
   if (existsSync(lista)) {
+    // El directorio del estado se crea AQUI DENTRO, no antes.
+    //
+    // Estaba fuera, y como la ruta por defecto es `/data` —el volumen de Railway— en cualquier
+    // otro entorno el servicio moria con EACCES intentando crear un directorio en la raiz,
+    // aunque el bot de cripto ni fuera a correr. Paso en GitHub Actions.
+    const dirEstado = dirname(estado);
+    if (!existsSync(dirEstado)) mkdirSync(dirEstado, { recursive: true });
     tareas.push({
       nombre: "bot cripto",
       seguidos: 0,
