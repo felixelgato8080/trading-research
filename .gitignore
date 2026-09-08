@@ -5,3 +5,8 @@ node_modules/
 !.env.example
 # El estado de los grabadores SI se versiona a proposito: es lo que hace que un precio
 # grabado no se pueda reescribir sin que aparezca en el historial.
+
+# Las copias .bak que escribe cada grabador antes de sobrescribir. NO se versionan: git ya es
+# la copia de seguridad, y guardarlas duplica cada diff del registro sin anadir informacion.
+# Ademas dejaban el arbol sucio para siempre, porque la tarea local solo commitea el .json.
+registros/*.bak
