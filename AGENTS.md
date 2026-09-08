@@ -208,15 +208,24 @@ Vuelto a medir el 8 sep con el simulador arreglado, 25 pares, 431.675 velas, cos
 pero **muere en los otros dos controles**: mitades +0,128 y −0,072, y quitando el instrumento
 que más aporta se queda en +0,007R. Grabándose hacia adelante en 26 pares.
 
-**El otro candidato:** zonas (estructura + oferta/demanda + R:R ≥ 2,5) en **cripto diario**.
-+0,244R ±0,157 sobre 219 operaciones con el coste MEDIDO de 27 pb. Pasa la volteada (2,7σ), las
-dos mitades salen positivas (+0,077 y +0,462) y sin su mejor moneda sigue en +0,201R. Solo 1,6σ
-sobre el azar y n=219, y el umbral de R:R se eligió mirando, así que no está demostrado.
+**Zonas en cripto diario: apretado y NO PASA.** Daba +0,244R sobre 219 operaciones, pasaba la
+volteada (2,7σ), las dos mitades y quitar la mejor moneda, y encima era **ejecutable** —stop del
+5,62% del precio, así que 9,7% anual con 17% de caída y exposición 0,98x, y aguanta 80 pb de
+coste—. Todo eso y aun así no vale, por dos cosas:
 
-Lo que lo hace distinto de todo lo demás: **el stop es el 5,62% del precio**, así que el peaje
-se lleva solo el 6,6% del riesgo y la exposición por posición es baja. Aguanta 72 pb de coste
-—la peor moneda medida— y sigue en +0,135R. Es el perfil contrario al del intradía, donde el
-stop de 1-2 pips hace que el peaje se coma el 28% del riesgo.
+- Solo **1,5σ sobre el azar** con n=219, y el umbral de R:R salió de mirar la curva. Ninguno de
+  los nueve umbrales probados llega a 2σ.
+- **Fuera de muestra pierde.** El mismo código, sin tocar, sobre 30 ETF y 110.397 velas diarias
+  (21 años): **−0,226R ±0,146**, peor que el azar por 1,6σ, negativo en las dos mitades y
+  −0,309R sin su mejor instrumento. Cada paso de la tabla sale negativo, no solo el final.
+
+No es sesgo largo en ninguno de los dos: en cripto la cesta hizo −3% en el periodo y las dos
+direcciones dan positivo; en ETF la cesta hizo +242% y las dos direcciones dan negativo. Es
+simplemente que no transfiere.
+
+Se puede argumentar que el impulso de 1,5 ATR está calibrado para cripto y que en ETF mide otra
+cosa. Es verdad. Pero buscar ahora el impulso que funcione en ETF es exactamente ajustar a los
+datos, así que no se hace.
 
 **Descartado y por qué:** ETF y futuros (apalancamiento), copy-trading de memecoins, RSI de forex
 intradía (bruto es PLANO, −0,043R ±0,099, y el peaje se lleva el 28% del riesgo: no hay coste lo
