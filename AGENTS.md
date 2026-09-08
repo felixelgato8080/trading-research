@@ -96,6 +96,25 @@ El control de "lo que el filtro rechaza" es el más subestimado. Que una versió
 mejor **no basta**: con menos operaciones cualquier cosa lo parece. Lo que decide es si lo
 rechazado va peor que lo aceptado.
 
+### La batería vive en `controles.ts`, no en cada herramienta
+
+Dos entradas, según cómo hable la estrategia:
+
+- `evaluar(...)` — la estrategia da **precios**: entrada, stop y objetivo son niveles. La entrada
+  es una orden limitada y puede llenarse dentro de su vela, así que importa qué extremo de esa
+  vela sigue siendo alcanzable. La usan `smc`, `divergencia` y `zonas`.
+- `evaluarPorRiesgo(...)` — la estrategia habla de **riesgo y múltiplos de R**, entrando al
+  cierre. La usan `tdfi`, `volumen` y `flujo`. Traduce a la ida y destraduce en el simulador; hay
+  una prueba que fija que la traducción no cambia ni un número.
+
+**No escribas una batería nueva.** Estaban copiadas en nueve herramientas y divergieron: una
+copia deducía el extremo válido de la vela de entrada del lado **volteado**, y eso daba −0,329R
+donde la verdad era −0,022R. Un control roto hace parecer excelente a una estrategia mediocre.
+
+La excepción legítima es un control **más exigente** que el genérico. `ictCli` sortea sus
+entradas al azar dentro de la MISMA ventana horaria que la estrategia; cambiarlo por el genérico
+sería comparar contra otra cosa. Si tienes uno así, déjalo y di por qué.
+
 ---
 
 ## LAS TRAMPAS YA ENCONTRADAS

@@ -18,6 +18,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { velas, type Vela, type Temporalidad } from "../forex/datos";
 import { atr } from "../forex/multiTf";
+import { evaluarPorRiesgo, informe } from "../forex/controles";
 import { volatilidad, simularRuptura } from "../forex/rupturas";
 import { simularObjetivo, type SeñalTdfi } from "../forex/tdfi";
 import {
@@ -108,6 +109,7 @@ async function main(): Promise<void> {
   console.log(CAB);
   console.log("-".repeat(67));
 
+  let mejorVwap: { objetivo: number; confirmacion: number; exp: number } | null = null;
   for (const objetivo of [1, 2]) {
     for (const confirmacion of [2, 3]) {
       const res: number[] = [];
@@ -136,9 +138,50 @@ async function main(): Promise<void> {
           if (r) ctrl.push(r.r);
         }
       }
-      console.log(fila(`VWAP ${confirmacion} velas · objetivo ${objetivo}R`, medir(res)));
+      const m = medir(res);
+      console.log(fila(`VWAP ${confirmacion} velas · objetivo ${objetivo}R`, m));
       console.log(fila(`  AZAR · objetivo ${objetivo}R`, medir(ctrl)));
+      if (m.n > 30 && (!mejorVwap || m.exp > mejorVwap.exp)) {
+        mejorVwap = { objetivo, confirmacion, exp: m.exp };
+      }
     }
+  }
+
+  // ---- LA BATERIA ENTERA sobre la mejor variante del VWAP --------------------------------
+  //
+  // Arriba solo habia UN control, el de entradas al azar. Faltaban los otros tres, y cada uno
+  // contesta algo que el del azar no puede: si aporta acertar el LADO, si se sostiene en las dos
+  // mitades del calendario, y si depende de un solo instrumento.
+  //
+  // Se corre sobre la MEJOR de las cuatro variantes a proposito. Es la que uno se quedaria, o
+  // sea la que ya viene elegida por haber mirado los resultados, y por eso es justo la que hay
+  // que apretar. Si la mejor de cuatro no aguanta la bateria, ninguna aguanta.
+  //
+  if (mejorVwap) {
+    const { objetivo, confirmacion } = mejorVwap;
+    console.log(
+      `
+LA BATERIA ENTERA sobre la mejor variante: ${confirmacion} velas · objetivo ${objetivo}R`,
+    );
+    console.log(
+      informe(evaluarPorRiesgo(
+        utiles,
+        (v) => atr(v, 14),
+        (_par, v) => {
+          const a = atr(v, 14);
+          const w = vwap(v);
+          const out: SeñalTdfi[] = [];
+          for (const x of retornoAlVwap(v, w, confirmacion)) {
+            const av = a[x.i];
+            if (av == null || !(av > 0)) continue;
+            out.push({ i: x.i, direccion: x.direccion, riesgo: av * 1.5 });
+          }
+          return out;
+        },
+        objetivo,
+        (v, x, objetivoR) => simularObjetivo(v, x, objetivoR, costeR * x.riesgo, 0, true),
+      )),
+    );
   }
 
   // ---- 2. LA PREGUNTA ACCIONABLE: ¿mejora la ruptura que YA funciona? -------------------

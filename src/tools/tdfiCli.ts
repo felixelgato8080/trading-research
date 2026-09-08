@@ -17,6 +17,7 @@
  * solo el punto donde el acierto se ve bonito.
  */
 import { readFileSync, existsSync } from "node:fs";
+import { evaluarPorRiesgo, informe } from "../forex/controles";
 import { velas, type Vela, type Temporalidad } from "../forex/datos";
 import { atr } from "../forex/multiTf";
 import {
@@ -159,6 +160,31 @@ async function main(): Promise<void> {
       console.log(fila(`  AZAR · objetivo ${objetivo}R`, mA, equilibrio));
     }
   }
+
+  // ---- LA BATERIA COMPLETA, sobre el objetivo de 0,5R ------------------------------------
+  //
+  // Arriba solo habia UN control, el de entradas al azar. Faltaban los otros tres, y cada uno
+  // contesta algo que el del azar no puede:
+  //
+  //   al reves     ¿aporta acertar el LADO? Mismas velas, mismo riesgo, direccion contraria.
+  //   mitades      ¿se sostiene en el tiempo o vive entero en un tramo?
+  //   sin el mejor ¿depende de un solo instrumento?
+  //
+  // La bateria habla en precios (entrada, stop, objetivo) y esta familia habla en riesgo y
+  // multiplos de R. La conversion es exacta en los dos sentidos —entrada al cierre, stop a un
+  // riesgo, objetivo a `objetivoR` riesgos— asi que se traduce en la entrada y se destraduce en
+  // el simulador, y la logica de los controles no se duplica una decima vez.
+  const OBJ = 0.5;
+  console.log("\n\nLA BATERIA ENTERA (objetivo 0,5R, entrada al cierre)");
+  console.log(
+    informe(evaluarPorRiesgo(
+      new Map([...porInstr].map(([k, x]) => [k, x.velas])),
+      (v) => atr(v, 14),
+      (par) => porInstr.get(par)?.sen ?? [],
+      OBJ,
+      (v, x, objetivoR) => simularObjetivo(v, x, objetivoR, costeR * x.riesgo, 0, true),
+    )),
+  );
 
   // ---- Lo que el video enseña: 20 operaciones ------------------------------------------
   console.log("\n\nPOR QUE 20 OPERACIONES NO DEMUESTRAN NADA");

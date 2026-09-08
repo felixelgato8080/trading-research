@@ -6,7 +6,8 @@ import { atr } from "../src/forex/multiTf";
 import { simular } from "../src/forex/estructuraValida";
 import {
   evaluar, medir, sigmas, informe,
-  type SeñalEvaluable, type Simulador, type Medida,
+  evaluarPorRiesgo,
+  type SeñalEvaluable, type SeñalPorRiesgo, type Simulador, type Medida,
 } from "../src/forex/controles";
 
 const VELAS = serieDePrueba(600);
@@ -158,4 +159,87 @@ test("el informe trae las sigmas, que es lo unico que decide si una diferencia e
   assert.ok(t.includes("misma señal al reves"));
   assert.ok(t.includes("1a mitad"));
   assert.ok(t.includes("en verde"));
+});
+
+// ---------------------------------------------------------------------------------------
+// LA FAMILIA POR RIESGO
+// ---------------------------------------------------------------------------------------
+//
+// TDFI, VWAP y flujo no hablan de entrada, stop y objetivo: hablan de un riesgo y un multiplo
+// de R, entrando al cierre. Antes cada uno se implementaba su propio control de azar y no tenia
+// ninguno de los otros tres. `evaluarPorRiesgo` traduce a la ida y destraduce en el simulador,
+// para que la logica de los controles siga viviendo en un solo sitio.
+//
+// Lo que hay que probar es que esa traduccion NO CAMBIA NADA. Si cambiara, seria otra vez una
+// copia de los controles que divergio en silencio, que es justo lo que este modulo existe para
+// impedir.
+
+/** La misma estrategia dicha en las dos lenguas. */
+const porRiesgo = (_par: string, v: Vela[]): SeñalPorRiesgo[] => {
+  const out: SeñalPorRiesgo[] = [];
+  const a = atr(v, 14);
+  for (let i = 60; i < v.length - 1; i += 40) {
+    const av = a[i];
+    if (av == null || !(av > 0)) continue;
+    out.push({ i, direccion: "LARGO", riesgo: av });
+  }
+  return out;
+};
+
+test("LA TRADUCCION NO CAMBIA NI UN NUMERO", () => {
+  const enPrecios = evaluar(DATOS, ATR, señalesDe, SIM);
+  const enRiesgo = evaluarPorRiesgo(
+    DATOS, ATR, porRiesgo, 2,
+    (v, s, objetivoR, extremo) => {
+      const largo = s.direccion === "LARGO";
+      const entrada = v[s.i]!.c;
+      return simular(v, {
+        i: s.i, direccion: s.direccion, entrada,
+        stop: largo ? entrada - s.riesgo : entrada + s.riesgo,
+        objetivo: largo ? entrada + s.riesgo * objetivoR : entrada - s.riesgo * objetivoR,
+        rr: objetivoR,
+      }, 0, 200, extremo);
+    },
+  );
+  // Se comparan con tolerancia y no con igualdad exacta: la ida y la vuelta pasan por
+  // `entrada - riesgo` y luego por `|entrada - stop|`, y eso deja restos de 1e-14. Lo que tiene
+  // que coincidir es el NUMERO DE OPERACIONES y el resultado, no los ultimos bits.
+  const igual = (a: Medida, b: Medida, que: string): void => {
+    assert.equal(a.n, b.n, `${que}: distinto numero de operaciones`);
+    assert.ok(Math.abs(a.esperanza - b.esperanza) < 1e-9, `${que}: ${a.esperanza} vs ${b.esperanza}`);
+    assert.ok(Math.abs(a.acierto - b.acierto) < 1e-12, `${que}: acierto`);
+  };
+  igual(enRiesgo.estrategia, enPrecios.estrategia, "la estrategia");
+  igual(enRiesgo.alReves, enPrecios.alReves, "al reves");
+  igual(enRiesgo.mitades[0], enPrecios.mitades[0], "1a mitad");
+  igual(enRiesgo.mitades[1], enPrecios.mitades[1], "2a mitad");
+  assert.ok(Math.abs(enRiesgo.sinElMejor - enPrecios.sinElMejor) < 1e-9);
+});
+
+test("el objetivo en R llega al simulador tal cual, no reconstruido a ojo", () => {
+  const vistos: number[] = [];
+  evaluarPorRiesgo(
+    new Map([["A", VELAS]]), ATR, porRiesgo, 2.5,
+    (_v, _s, objetivoR) => { vistos.push(objetivoR); return { r: 0 }; },
+    { vecesAzar: 1 },
+  );
+  // Las de la estrategia y las volteadas van a 2,5 exactos. Las del azar tambien, porque el
+  // control usa el R:R MEDIO de la estrategia, que aqui es ese mismo.
+  assert.ok(vistos.length > 0);
+  for (const x of vistos) assert.ok(Math.abs(x - 2.5) < 1e-9, `objetivo ${x}`);
+});
+
+test("UNA SEÑAL CON RIESGO CERO SE DESCARTA en vez de dar una R infinita", () => {
+  // Un Infinity en la lista destruye la media de todas las demas, y lo hace en silencio.
+  let vistas = 0;
+  const b = evaluarPorRiesgo(
+    new Map([["A", VELAS]]), ATR,
+    () => [{ i: 100, direccion: "LARGO", riesgo: 0 }], 2,
+    () => { vistas += 1; return { r: 1 }; },
+    { vecesAzar: 1 },
+  );
+  assert.equal(b.estrategia.n, 0, "la señal sin riesgo no llega a contarse");
+  assert.ok(Number.isFinite(b.azar.esperanza));
+  // Las unicas que llegan al simulador son las del control de azar, que si tienen riesgo.
+  assert.equal(vistas, b.azar.n);
 });

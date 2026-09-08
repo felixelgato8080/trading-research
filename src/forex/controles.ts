@@ -226,3 +226,83 @@ export function informe(b: Bateria): string {
     "Una diferencia por debajo de 2σ es ruido, por muy grande que parezca el numero.",
   ].join("\n");
 }
+
+// ---------------------------------------------------------------------------------------------
+// LA OTRA FAMILIA
+// ---------------------------------------------------------------------------------------------
+//
+// En este proyecto conviven dos formas de expresar una operacion:
+//
+//   por PRECIOS   entrada, stop y objetivo son niveles concretos. La entrada es una orden
+//                 limitada y puede llenarse dentro de su vela, asi que importa que extremo de
+//                 esa vela sigue siendo alcanzable. Es lo que come `evaluar`.
+//
+//   por RIESGO    se entra AL CIERRE de la vela de la señal, el stop esta a una distancia dada
+//                 y el objetivo a tantos riesgos. TDFI, VWAP y flujo hablan asi.
+//
+// La segunda es un caso particular de la primera, no otra cosa: fijado el cierre, los tres
+// niveles quedan determinados. Por eso los controles no se reimplementan — se traduce a la ida,
+// se destraduce en el simulador, y la logica que decide si un resultado vale sigue viviendo en
+// un solo sitio.
+
+/** Señal de la familia por riesgo: entrada al cierre de `i`, stop a `riesgo` de distancia. */
+export interface SeñalPorRiesgo {
+  i: number;
+  direccion: "LARGO" | "CORTO";
+  riesgo: number;
+}
+
+/**
+ * La misma bateria, para estrategias que hablan en riesgo y multiplos de R.
+ *
+ * `simular` recibe la señal ya en los terminos de la familia y el objetivo en R, que es lo que
+ * `simularObjetivo` y compañia esperan.
+ *
+ * EL `extremo` SE PASA AUNQUE ESTA FAMILIA NO SUELA NECESITARLO. Entrando al cierre no queda
+ * nada de la vela de la señal por recorrer, asi que da igual; pero el mismo simulador puede
+ * entrar en la apertura siguiente, y ahi si importa. Tragarselo aqui seria decidir por el
+ * llamante, y esa clase de suposicion callada es la que hizo divergir las copias: un control
+ * que deducia el extremo del lado volteado daba -0,329R donde la verdad era -0,022R.
+ */
+export function evaluarPorRiesgo(
+  datos: Map<string, Vela[]>,
+  atrDe: (velas: Vela[]) => (number | null)[],
+  señalesDe: (par: string, velas: Vela[]) => SeñalPorRiesgo[],
+  objetivoR: number,
+  simular: (
+    velas: Vela[],
+    s: SeñalPorRiesgo,
+    objetivoR: number,
+    extremo?: "MINIMO" | "MAXIMO" | "NINGUNO",
+  ) => { r: number } | null,
+  op: Opciones = {},
+): Bateria {
+  return evaluar(
+    datos,
+    atrDe,
+    (par, velas) => {
+      const out: SeñalEvaluable[] = [];
+      for (const x of señalesDe(par, velas)) {
+        const c = velas[x.i]?.c;
+        if (c == null || !(x.riesgo > 0)) continue;
+        const largo = x.direccion === "LARGO";
+        out.push({
+          i: x.i, direccion: x.direccion, entrada: c,
+          stop: largo ? c - x.riesgo : c + x.riesgo,
+          objetivo: largo ? c + x.riesgo * objetivoR : c - x.riesgo * objetivoR,
+          rr: objetivoR,
+        });
+      }
+      return out;
+    },
+    (velas, x, extremo) => {
+      const riesgo = Math.abs(x.entrada - x.stop);
+      if (!(riesgo > 0)) return null;
+      return simular(
+        velas, { i: x.i, direccion: x.direccion, riesgo },
+        Math.abs(x.objetivo - x.entrada) / riesgo, extremo,
+      );
+    },
+    op,
+  );
+}

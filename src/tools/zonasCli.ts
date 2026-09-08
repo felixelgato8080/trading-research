@@ -14,8 +14,9 @@
 import { readFileSync, existsSync } from "node:fs";
 import type { Vela } from "../forex/datos";
 import { atr } from "../forex/multiTf";
+import { evaluar, informe } from "../forex/controles";
 import {
-  señales, simular, type AjustesZona, type SeñalZona,
+  señales, simular, type AjustesZona,
 } from "../forex/estructuraValida";
 
 function txt(n: string): string | undefined {
@@ -26,10 +27,6 @@ function num(n: string, d: number): number {
   if (m === undefined) return d;
   const v = Number(m);
   return Number.isFinite(v) ? v : d;
-}
-function azar(semilla: number): () => number {
-  let s = semilla >>> 0;
-  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 }
 
 interface M { n: number; wr: number; pf: number; exp: number; rr: number }
@@ -130,119 +127,24 @@ async function main(): Promise<void> {
     console.log(fila(`3. + R:R >= ${rrMin}`, medir(r.rs), `sin mejor ${r.sinMejor.toFixed(3)} · ${r.enVerde}/${r.total}`));
   }
 
-  // ---- CONTROLES -----------------------------------------------------------------------
+  // ---- CONTROLES: la bateria compartida ---------------------------------------------------
   //
-  // Uno solo no basta. El de entradas al azar dice si las reglas encuentran algo que no este
-  // ya en la forma del pago (stop corto, objetivo lejano, cripto con colas gordas). El de
-  // direccion volteada dice si acertar EL LADO aporta: mismas entradas, mismo riesgo, misma
-  // distancia al objetivo, pero la mitad de las veces al reves.
-  const completa = correr({ ...BASE, rrMinimo: 2.5 }, true);
-  const mComp = medir(completa.rs);
-
-  // Control A: entradas al azar. Con muchas repeticiones, porque con 300 operaciones el error
-  // tipico es +-0,12R y eso es mas grande que la diferencia que se quiere medir.
-  const rnd = azar(20260907);
-  const ctrl: Array<{ r: number; rr: number }> = [];
-  const porCoin = Math.max(1, Math.round((mComp.n / datos.size) * 20));
-  for (const [, v] of datos) {
-    const a = atr(v, 14);
-    for (let k = 0; k < porCoin; k += 1) {
-      const i = 50 + Math.floor(rnd() * (v.length - 250));
-      const av = a[i];
-      if (av == null || !(av > 0)) continue;
-      const largo = rnd() < 0.5;
-      const entrada = v[i]!.c;
-      const riesgo = av * 1.5;
-      const s: SeñalZona = {
-        i, direccion: largo ? "LARGO" : "CORTO", entrada,
-        stop: largo ? entrada - riesgo : entrada + riesgo,
-        objetivo: largo ? entrada + riesgo * mComp.rr : entrada - riesgo * mComp.rr,
-        rr: mComp.rr,
-      };
-      const r = simular(v, s, (entrada * costeBps) / 10_000, 200, "NINGUNO");
-      if (r) ctrl.push({ r: r.r, rr: r.rr });
-    }
-  }
-  console.log(fila("   A- azar mismo perfil", medir(ctrl)));
-
-  // Control B: las mismas señales, con la direccion echada a suertes.
-  const volteado: Array<{ r: number; rr: number }> = [];
-  const rnd2 = azar(11111);
-  for (const [, v] of datos) {
-    for (const x of señales(v, atr(v, 14), { ...BASE, rrMinimo: 2.5 })) {
-      const largo = rnd2() < 0.5;
-      const riesgo = Math.abs(x.entrada - x.stop);
-      const dist = Math.abs(x.objetivo - x.entrada);
-      const s: SeñalZona = {
-        i: x.i, direccion: largo ? "LARGO" : "CORTO", entrada: x.entrada,
-        stop: largo ? x.entrada - riesgo : x.entrada + riesgo,
-        objetivo: largo ? x.entrada + dist : x.entrada - dist,
-        rr: x.rr,
-      };
-      // El extremo valido lo fija el viaje del precio, que es el de la señal ORIGINAL.
-      // Deducirlo del lado volteado seria matar el control con un extremo ya pasado.
-      const r = simular(
-        v, s, (x.entrada * costeBps) / 10_000, 200,
-        x.direccion === "LARGO" ? "MINIMO" : "MAXIMO",
-      );
-      if (r) volteado.push({ r: r.r, rr: r.rr });
-    }
-  }
-  console.log(fila("   B- misma señal, lado al azar", medir(volteado)));
-
-  // Control C: TODAS volteadas. Es la comparacion pareada: mismas barras, mismo riesgo, misma
-  // distancia al objetivo, lado opuesto. Si acertar el lado no aporta, esto tiene que empatar.
-  const contrario: Array<{ r: number; rr: number }> = [];
-  for (const [, v] of datos) {
-    for (const x of señales(v, atr(v, 14), { ...BASE, rrMinimo: 2.5 })) {
-      const largo = x.direccion === "CORTO";
-      const riesgo = Math.abs(x.entrada - x.stop);
-      const dist = Math.abs(x.objetivo - x.entrada);
-      const s: SeñalZona = {
-        i: x.i, direccion: largo ? "LARGO" : "CORTO", entrada: x.entrada,
-        stop: largo ? x.entrada - riesgo : x.entrada + riesgo,
-        objetivo: largo ? x.entrada + dist : x.entrada - dist,
-        rr: x.rr,
-      };
-      const r = simular(
-        v, s, (x.entrada * costeBps) / 10_000, 200,
-        x.direccion === "LARGO" ? "MINIMO" : "MAXIMO",
-      );
-      if (r) contrario.push({ r: r.r, rr: r.rr });
-    }
-  }
-  console.log(fila("   C- misma señal AL REVES", medir(contrario)));
-
-  // ---- ESTABILIDAD: las dos mitades del calendario ---------------------------------------
-  const tiempos = [...datos.values()].flat().map((x) => x.t).sort((a, b) => a - b);
-  const corte = tiempos[Math.floor(tiempos.length / 2)]!;
-  const mitades: Array<Array<{ r: number; rr: number }>> = [[], []];
-  for (const [, v] of datos) {
-    for (const x of señales(v, atr(v, 14), { ...BASE, rrMinimo: 2.5 })) {
-      const r = simular(v, x, (x.entrada * costeBps) / 10_000, 200);
-      if (r) mitades[v[x.i]!.t < corte ? 0 : 1]!.push({ r: r.r, rr: r.rr });
-    }
-  }
-  const f = (n: number) => new Date(n * 1000).toISOString().slice(0, 7);
+  // Estaban copiados a mano aqui, con su propio generador de azar y su propio corte de mitades.
+  // La logica que decide si un resultado vale no puede vivir en nueve copias: ya divergieron una
+  // vez, y la copia rota deducia el extremo valido de la vela de entrada del lado VOLTEADO. Eso
+  // daba -0,329R donde la verdad era -0,022R: un control roto hace parecer excelente a una
+  // estrategia mediocre, que es la peor forma de equivocarse aqui.
+  //
+  // Se pierde el control B de antes —la misma señal con el lado echado a suertes—. No es una
+  // perdida: era una version a medias del C, que voltea TODAS y es la comparacion pareada.
+  console.log("\nCONTROLES de la estrategia completa (tendencia + R:R >= 2,5)");
   console.log(
-    `\n   1a mitad (hasta ${f(corte)})`.padEnd(33) +
-      fila("", medir(mitades[0]!)).trimStart(),
-  );
-  console.log(
-    `   2a mitad (desde ${f(corte)})`.padEnd(32) +
-      fila("", medir(mitades[1]!)).trimStart(),
-  );
-
-  // Error tipico, para no leer como diferencia lo que es ruido.
-  const et = (rs: Array<{ r: number }>): number => {
-    if (rs.length < 2) return 0;
-    const m = rs.reduce((s, x) => s + x.r, 0) / rs.length;
-    const va = rs.reduce((s, x) => s + (x.r - m) ** 2, 0) / (rs.length - 1);
-    return Math.sqrt(va / rs.length);
-  };
-  console.log(
-    `\nError tipico de la esperanza: estrategia +-${et(completa.rs).toFixed(3)}R  ` +
-      `A +-${et(ctrl).toFixed(3)}R  B +-${et(volteado).toFixed(3)}R`,
+    informe(evaluar(
+      datos,
+      (v) => atr(v, 14),
+      (_par, v) => señales(v, atr(v, 14), { ...BASE, rrMinimo: 2.5, exigirTendencia: true }),
+      (v, x, extremo) => simular(v, x, (x.entrada * costeBps) / 10_000, 200, extremo),
+    )),
   );
 
   console.log(

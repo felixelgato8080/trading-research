@@ -15,7 +15,9 @@
  * el peaje pesa mas sobre un stop pequeño.
  */
 import { readFileSync, existsSync } from "node:fs";
+import type { Vela } from "../forex/datos";
 import type { VelaFlujo } from "../forex/binance";
+import { evaluarPorRiesgo, informe } from "../forex/controles";
 import { atr } from "../forex/multiTf";
 import { volatilidad, simularRuptura } from "../forex/rupturas";
 import { simularObjetivo, type SeñalTdfi } from "../forex/tdfi";
@@ -89,6 +91,7 @@ async function main(): Promise<void> {
   console.log(CAB);
   console.log("-".repeat(64));
 
+  let mejorAbs: { minD: number; maxRec: number; objetivo: number; exp: number } | null = null;
   for (const [minD, maxRec] of [[2, 0.3], [3, 0.3], [3, 0.2], [4, 0.3]] as Array<[number, number]>) {
     for (const objetivo of [2]) {
       const res: number[] = [];
@@ -116,9 +119,44 @@ async function main(): Promise<void> {
           if (r) ctrl.push(r.r);
         }
       }
-      console.log(fila(`delta >${minD}x · recorrido <${maxRec}`, medir(res)));
+      const m = medir(res);
+      console.log(fila(`delta >${minD}x · recorrido <${maxRec}`, m));
       console.log(fila(`  AZAR`, medir(ctrl)));
+      if (m.n > 30 && (!mejorAbs || m.exp > mejorAbs.exp)) {
+        mejorAbs = { minD, maxRec, objetivo, exp: m.exp };
+      }
     }
+  }
+
+  // ---- LA BATERIA ENTERA sobre la mejor absorcion -----------------------------------------
+  //
+  // Arriba solo habia UN control, el de entradas al azar. Faltaban los otros tres: si aporta
+  // acertar el LADO, si se sostiene en las dos mitades del calendario, y si depende de un solo
+  // instrumento.
+  //
+  // Sobre la MEJOR de las cuatro combinaciones a proposito: es la que uno se quedaria, o sea la
+  // que ya viene elegida por haber mirado los resultados, y por eso es la que hay que apretar.
+  if (mejorAbs) {
+    const { minD, maxRec, objetivo } = mejorAbs;
+    console.log(`\nLA BATERIA ENTERA sobre la mejor: delta >${minD}x · recorrido <${maxRec}`);
+    console.log(
+      informe(evaluarPorRiesgo(
+        new Map([...datos].map(([k, v]) => [k, v as Vela[]])),
+        (v) => atr(v, 14),
+        (_par, v) => {
+          const a = atr(v, 14);
+          const out: SeñalTdfi[] = [];
+          for (const x of absorcion(v as VelaFlujo[], a, 20, minD, maxRec)) {
+            const av = a[x.i];
+            if (av == null || !(av > 0)) continue;
+            out.push({ i: x.i, direccion: x.direccion, riesgo: av * 1.5 });
+          }
+          return out;
+        },
+        objetivo,
+        (v, x, objetivoR) => simularObjetivo(v, x, objetivoR, costeR * x.riesgo, 20, true),
+      )),
+    );
   }
 
   // ---- 2. DIVERGENCIA DE CVD ----------------------------------------------------------
