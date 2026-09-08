@@ -20,8 +20,9 @@ import { readFileSync, existsSync } from "node:fs";
 import type { Vela } from "../forex/datos";
 import { atr } from "../forex/multiTf";
 import { simular, type SeñalZona } from "../forex/estructuraValida";
+import { evaluar, informe } from "../forex/controles";
 import {
-  huecos, bloques, roturas, señales, type AjustesSMC,
+  huecos, bloques, roturas, señales as señalesSmc, type AjustesSMC,
 } from "../forex/smc";
 
 function txt(n: string): string | undefined {
@@ -119,7 +120,7 @@ async function main(): Promise<void> {
     for (const [s, v] of datos) {
       const a = atr(v, 14);
       const propias: number[] = [];
-      for (const x of señales(v, a, aj)) {
+      for (const x of señalesSmc(v, a, aj)) {
         if (!enSesion(v[x.i]!.t)) continue;
         const r = simular(v, x, (x.entrada * costeBps) / 10_000, maxVelas);
         if (r) { rs.push(r.r); propias.push(r.r); }
@@ -195,73 +196,21 @@ async function main(): Promise<void> {
   for (const [motivo, l] of porMotivo) {
     console.log(fila(`     por ${motivo.toLowerCase()}`, medir(l)));
   }
-
-  // ---- Controles ---------------------------------------------------------------------------
-  const mBase = medir(conVetos.rs);
-  const rnd = azar(20260907);
-  const ctrl: number[] = [];
-  const porCoin = Math.max(1, Math.round((mBase.n / Math.max(1, datos.size)) * 20));
-  for (const [, v] of datos) {
-    const a = atr(v, 14);
-    for (let k = 0; k < porCoin; k += 1) {
-      const i = 50 + Math.floor(rnd() * Math.max(1, v.length - 250));
-      const av = a[i];
-      if (av == null || !(av > 0)) continue;
-      if (!enSesion(v[i]!.t)) continue;
-      const largo = rnd() < 0.5;
-      const entrada = v[i]!.c;
-      const riesgo = av * 1.5;
-      const s: SeñalZona = {
-        i, direccion: largo ? "LARGO" : "CORTO", entrada,
-        stop: largo ? entrada - riesgo : entrada + riesgo,
-        objetivo: largo ? entrada + riesgo * AJ.objetivoR : entrada - riesgo * AJ.objetivoR,
-        rr: AJ.objetivoR,
-      };
-      const r = simular(v, s, (entrada * costeBps) / 10_000, maxVelas, "NINGUNO");
-      if (r) ctrl.push(r.r);
-    }
-  }
-  console.log(fila("   AZAR mismo perfil", medir(ctrl)));
-
-  const alReves: number[] = [];
-  for (const [, v] of datos) {
-    const a = atr(v, 14);
-    for (const x of señales(v, a, AJ)) {
-      if (!enSesion(v[x.i]!.t)) continue;
-      const largo = x.direccion === "CORTO";
-      const riesgo = Math.abs(x.entrada - x.stop);
-      const s: SeñalZona = {
-        i: x.i, direccion: largo ? "LARGO" : "CORTO", entrada: x.entrada,
-        stop: largo ? x.entrada - riesgo : x.entrada + riesgo,
-        objetivo: largo ? x.entrada + riesgo * AJ.objetivoR : x.entrada - riesgo * AJ.objetivoR,
-        rr: AJ.objetivoR,
-      };
-      // El extremo valido de la vela de entrada lo fija el viaje del precio, que es el de la
-      // señal ORIGINAL. Deducirlo del lado volteado mataria el control con un extremo ya pasado.
-      const r = simular(
-        v, s, (x.entrada * costeBps) / 10_000, maxVelas,
-        x.direccion === "LARGO" ? "MINIMO" : "MAXIMO",
-      );
-      if (r) alReves.push(r.r);
-    }
-  }
-  console.log(fila("   MISMA SEÑAL AL REVES", medir(alReves)));
-
-  // ---- Las dos mitades ----------------------------------------------------------------------
-  const tiempos = [...datos.values()].flat().map((x) => x.t).sort((a, b) => a - b);
-  const corte = tiempos[Math.floor(tiempos.length / 2)] ?? 0;
-  const mitades: number[][] = [[], []];
-  for (const [, v] of datos) {
-    const a = atr(v, 14);
-    for (const x of señales(v, a, AJ)) {
-      if (!enSesion(v[x.i]!.t)) continue;
-      const r = simular(v, x, (x.entrada * costeBps) / 10_000, maxVelas);
-      if (r) mitades[v[x.i]!.t < corte ? 0 : 1]!.push(r.r);
-    }
-  }
-  const f = (n: number) => new Date(n * 1000).toISOString().slice(0, 7);
-  console.log(fila(`   1a mitad (hasta ${f(corte)})`, medir(mitades[0]!)));
-  console.log(fila(`   2a mitad (desde ${f(corte)})`, medir(mitades[1]!)));
+  // ---- LOS DEMAS CONTROLES: la bateria compartida ------------------------------------------
+  //
+  // El azar, el volteado y las mitades estaban escritos aqui a mano, igual que en otros ocho
+  // sitios. La comprobacion del veto de arriba NO se va: es especifica de este filtro y la
+  // bateria generica no la cubre.
+  console.log(
+    informe(evaluar(
+      datos,
+      (v) => atr(v, 14),
+      // El filtro de sesion tambien aqui: si no, `--horas` se aplicaria a la estrategia pero
+      // no a sus controles, y la comparacion dejaria de ser entre iguales.
+      (_par, v) => señalesSmc(v, atr(v, 14), AJ).filter((x) => enSesion(v[x.i]!.t)),
+      (v, s, extremo) => simular(v, s, (s.entrada * costeBps) / 10_000, maxVelas, extremo),
+    )),
+  );
 
   const eq = 1 / (1 + AJ.objetivoR);
   console.log(

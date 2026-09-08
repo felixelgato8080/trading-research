@@ -21,7 +21,8 @@ import type { Vela } from "../forex/datos";
 import { pip } from "../forex/datos";
 import { rsi } from "../forex/rsi";
 import { atr } from "../forex/multiTf";
-import { simular, type SeñalZona } from "../forex/estructuraValida";
+import { simular } from "../forex/estructuraValida";
+import { evaluar, informe } from "../forex/controles";
 import {
   señales, type AjustesDivergencia, type AjustesEntrada, type Objetivo, type Stop,
 } from "../forex/divergencia";
@@ -203,72 +204,34 @@ async function main(): Promise<void> {
     return;
   }
 
-  // ---- CONTROLES sobre la mejor -------------------------------------------------------------
+  // ---- CONTROLES: la bateria compartida, no una copia local -------------------------------
+  //
+  // Esto estaba escrito a mano aqui, y en `smcCli`, y en `zonasCli`. Nueve copias de la logica
+  // que decide si un resultado vale o no. En una de ellas el volteado deducia mal el extremo de
+  // la vela de entrada y daba -0,329R donde la verdad era -0,022R.
+  const [stopMejor, objMejor, estrictoMejor] = [
+    mejor.nombre.includes("extremo") ? "EXTREMO" : "ZONA",
+    mejor.nombre.includes("liquidez") ? "LIQUIDEZ" : "FIJO",
+    mejor.nombre.includes("estricto"),
+  ] as [Stop, Objetivo, boolean];
+
   console.log(`\nCONTROLES sobre la mejor combinacion (${mejor.nombre})`);
-  console.log(CAB);
-  console.log("-".repeat(114));
-  const m = medir(mejor.res.ops, mejor.res.rr);
-  console.log(fila("la estrategia", m));
-
-  const rnd = azar(20260907);
-  const ctrl: Op[] = [];
-  const porPar = Math.max(1, Math.round((m.n / Math.max(1, pares.length)) * 20));
-  for (const p of pares) {
-    for (let k = 0; k < porPar; k += 1) {
-      const i = 50 + Math.floor(rnd() * Math.max(1, p.men.length - 250));
-      const av = p.a[i];
-      if (av == null || !(av > 0)) continue;
-      const largo = rnd() < 0.5;
-      const entrada = p.men[i]!.c;
-      const riesgo = av * 1.5;
-      const s: SeñalZona = {
-        i, direccion: largo ? "LARGO" : "CORTO", entrada,
-        stop: largo ? entrada - riesgo : entrada + riesgo,
-        objetivo: largo ? entrada + riesgo * m.rr : entrada - riesgo * m.rr,
-        rr: m.rr,
-      };
-      const r = simular(p.men, s, (entrada * costeBps) / 10_000, maxVelas, "NINGUNO");
-      if (r) ctrl.push({ r: r.r, pips: (r.r * riesgo) / pip(p.s) });
-    }
-  }
-  console.log(fila("AZAR mismo perfil", medir(ctrl, m.rr)));
-
-  const alReves: Op[] = [];
-  {
-    const [stop, objetivo, estricto] = [
-      mejor.nombre.includes("extremo") ? "EXTREMO" : "ZONA",
-      mejor.nombre.includes("liquidez") ? "LIQUIDEZ" : "FIJO",
-      mejor.nombre.includes("estricto"),
-    ] as [Stop, Objetivo, boolean];
-    for (const p of pares) {
-      for (const x of señales(
-        p.may, p.r, p.men, p.a,
-        { ...DIV, exigirFueraDelCanal: estricto }, { ...ENT, stop, objetivo },
-      )) {
-        const largo = x.direccion === "CORTO";
-        const riesgo = Math.abs(x.entrada - x.stop);
-        const dist = Math.abs(x.objetivo - x.entrada);
-        const s: SeñalZona = {
-          i: x.i, direccion: largo ? "LARGO" : "CORTO", entrada: x.entrada,
-          stop: largo ? x.entrada - riesgo : x.entrada + riesgo,
-          objetivo: largo ? x.entrada + dist : x.entrada - dist,
-          rr: x.rr,
-        };
-        // El extremo valido de la vela de entrada lo fija el viaje del precio, que es el de la
-        // señal ORIGINAL. Deducirlo del lado volteado la mataria con un extremo ya pasado.
-        const r = simular(
-          p.men, s, (x.entrada * costeBps) / 10_000, maxVelas,
-          x.direccion === "LARGO" ? "MINIMO" : "MAXIMO",
+  console.log(
+    informe(evaluar(
+      new Map(pares.map((p) => [p.s, p.men])),
+      (v) => atr(v, 14),
+      (par, v) => {
+        const p = pares.find((x) => x.s === par);
+        if (!p) return [];
+        return señales(
+          p.may, p.r, v, atr(v, 14),
+          { ...DIV, exigirFueraDelCanal: estrictoMejor },
+          { ...ENT, stop: stopMejor, objetivo: objMejor },
         );
-        if (r) alReves.push({ r: r.r, pips: (r.r * riesgo) / pip(p.s) });
-      }
-    }
-  }
-  console.log(fila("MISMA SEÑAL AL REVES", medir(alReves, m.rr)));
-
-  const mit = mejor.res.mitades;
-  console.log(fila("1a mitad", medir(mit[0]!.map((r) => ({ r, pips: 0 })), m.rr)));
-  console.log(fila("2a mitad", medir(mit[1]!.map((r) => ({ r, pips: 0 })), m.rr)));
+      },
+      (v, s, extremo) => simular(v, s, (s.entrada * costeBps) / 10_000, maxVelas, extremo),
+    )),
+  );
 
   // ---- DE R A DINERO: la prueba que hoy mato al resultado estrella de ETF -----------------
   //
