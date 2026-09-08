@@ -203,13 +203,27 @@ probada, está esperando.
 exposición 0,9x, 30 monedas de Binance. Corriendo en papel.
 
 **Candidato sin demostrar:** SMC en forex 1h (impulso 2,5 ATR, colchón 0,5, objetivo 3R).
-+0,071R, 3,1σ sobre el azar, 1.076 operaciones. Salió de barrer ~25 configuraciones, así que
-parte de esa significancia es la búsqueda misma. Grabándose hacia adelante en 26 pares.
+Vuelto a medir el 8 sep con el simulador arreglado, 25 pares, 431.675 velas, coste 1 pb:
+**+0,036R ±0,049** sobre 1.025 operaciones. Gana al azar por 2,4σ y a la volteada por 2,4σ,
+pero **muere en los otros dos controles**: mitades +0,128 y −0,072, y quitando el instrumento
+que más aporta se queda en +0,007R. Grabándose hacia adelante en 26 pares.
+
+**El otro candidato:** zonas (estructura + oferta/demanda + R:R ≥ 2,5) en **cripto diario**.
++0,244R ±0,157 sobre 219 operaciones con el coste MEDIDO de 27 pb. Pasa la volteada (2,7σ), las
+dos mitades salen positivas (+0,077 y +0,462) y sin su mejor moneda sigue en +0,201R. Solo 1,6σ
+sobre el azar y n=219, y el umbral de R:R se eligió mirando, así que no está demostrado.
+
+Lo que lo hace distinto de todo lo demás: **el stop es el 5,62% del precio**, así que el peaje
+se lleva solo el 6,6% del riesgo y la exposición por posición es baja. Aguanta 72 pb de coste
+—la peor moneda medida— y sigue en +0,135R. Es el perfil contrario al del intradía, donde el
+stop de 1-2 pips hace que el peaje se coma el 28% del riesgo.
 
 **Descartado y por qué:** ETF y futuros (apalancamiento), copy-trading de memecoins, RSI de forex
-intradía (el borde es la mitad del peaje), TDFI, VWAP, huecos, momento transversal, ORB,
-compresión, pares, flujo de órdenes, ICT barrido+IFVG, cripto 1h, la fórmula de 3 pasos, los
-parciales.
+intradía (bruto es PLANO, −0,043R ±0,099, y el peaje se lleva el 28% del riesgo: no hay coste lo
+bastante bajo para salvarlo), TDFI (pierde contra su propia volteada por 2,3σ), VWAP, huecos,
+momento transversal, ORB, compresión, pares, flujo de órdenes, ICT barrido+IFVG, cripto 1h, la
+fórmula de 3 pasos, los parciales, y puntuar confluencias (el resultado por score no es monótono:
+score 0 da −1,26R y score 1 da +0,81R).
 
 ---
 
