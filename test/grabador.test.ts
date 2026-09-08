@@ -193,3 +193,66 @@ test("una esperanza minuscula necesita una muestra enorme", () => {
   const casiCero = { n: 100, aciertos: 0.33, pf: 1.01, esperanza: 0.018, error: 0.11, rrMedio: 2 };
   assert.ok(muestraNecesaria(casiCero) > 10_000, "0,018R es indistinguible sin miles de datos");
 });
+
+// ---------------------------------------------------------------------------------------
+// ¿SE APUNTO ANTES DE QUE LA ENTRADA EXISTIERA?
+// ---------------------------------------------------------------------------------------
+//
+// Medido el 8 sep sobre el registro de verdad: 6 de 6 señales se apuntaron cuando su entrada
+// YA se habia llenado, entre 31 y 256 minutos tarde. Los precios no quedan falseados —la
+// entrada es una orden limitada cuyo nivel sale de la vela de la señal— pero se pierde lo unico
+// que hacia valioso el registro, que es haberse comprometido antes.
+//
+// Se apunta por operacion para poder separarlas despues. Una marca que dijera siempre lo mismo
+// no serviria de nada, asi que aqui se fijan los DOS sentidos.
+
+/** Estrategia de mentira: señal en la vela `iSeñal`, para controlar el retraso a mano. */
+const señalEn = (iSeñal: number, minimo: number): Proveedor => (_par, velas) =>
+  velas.length > iSeñal
+    ? [{ i: iSeñal, direccion: "LARGO", entrada: minimo, stop: minimo - 10, objetivo: minimo + 20, rr: 2 }]
+    : [];
+
+test("AL DIA: la señal es la ultima vela cerrada y la marca dice que no se sabia", () => {
+  const base = Array.from({ length: 34 }, (_, k) => v(k, 100, 101, 99, 100));
+  const reg = registroNuevo("m", "d0", {}, 0, 50);
+  // Primera pasada hasta la 32; segunda con una vela mas, asi que la señal (33) es la ultima
+  // CERRADA de la segunda y despues de ella no existe nada todavia.
+  const a = pasada(reg, new Map([["X", base.slice(0, 34)]]), señalEn(33, 100), "d1");
+  const b = pasada(
+    a.registro,
+    new Map([["X", [...base, v(34, 100, 101, 99, 100), v(35, 100, 101, 99, 100)]]]),
+    señalEn(34, 100), "d2",
+  );
+  assert.equal(b.registro.pendientes.length + b.registro.abiertas.length, 1);
+  const p = [...b.registro.pendientes, ...b.registro.abiertas][0]!;
+  assert.equal(p.tSeñal, 34 * H);
+  assert.equal(p.velasDeRetraso, 0);
+});
+
+test("CON RETRASO: se apunta CUANTAS velas, no un si/no", () => {
+  const base = Array.from({ length: 34 }, (_, k) => v(k, 100, 101, 99, 100));
+  const cola = Array.from({ length: 12 }, (_, k) => v(34 + k, 100, 101, 99, 100));
+  const reg = registroNuevo("m", "d0", {}, 0, 50);
+  const a = pasada(reg, new Map([["X", base]]), señalEn(34, 100), "d1");
+  // Doce velas de golpe: la señal de la 34 se apunta cuando ya existen hasta la 45.
+  const b = pasada(a.registro, new Map([["X", [...base, ...cola]]]), señalEn(34, 100), "d2");
+  const todas = [...b.registro.pendientes, ...b.registro.abiertas, ...b.registro.cerradas];
+  assert.equal(todas.length, 1);
+  // De la vela 34 a la 44: la 45 esta EN CURSO y el grabador no la cuenta.
+  assert.equal(todas[0]!.velasDeRetraso, 10);
+});
+
+test("la marca viaja con la operacion hasta que se cierra", () => {
+  const base = Array.from({ length: 34 }, (_, k) => v(k, 100, 101, 99, 100));
+  const cola = [
+    ...Array.from({ length: 6 }, (_, k) => v(34 + k, 100, 101, 99, 100)),
+    v(40, 100, 101, 79, 80),   // toca el stop en 90
+    v(41, 80, 81, 79, 80),
+  ];
+  const reg = registroNuevo("m", "d0", {}, 0, 50);
+  const a = pasada(reg, new Map([["X", base]]), señalEn(34, 100), "d1");
+  const b = pasada(a.registro, new Map([["X", [...base, ...cola]]]), señalEn(34, 100), "d2");
+  const c = pasada(b.registro, new Map([["X", [...base, ...cola]]]), señalEn(34, 100), "d3");
+  assert.equal(c.registro.cerradas.length, 1);
+  assert.ok(c.registro.cerradas[0]!.velasDeRetraso! > 0);
+});

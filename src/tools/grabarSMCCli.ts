@@ -194,6 +194,28 @@ async function main(): Promise<void> {
           `operaciones. Llevas ${b.n}.`
         : "Aun no hay con que estimar nada.",
     );
+    // LA LINEA QUE VALE ES LA ESTRICTA. Una operacion apuntada cuando su entrada YA habia
+    // ocurrido no falsea ningun precio —la entrada es una orden limitada cuyo nivel sale de la
+    // vela de la señal— pero tampoco prueba nada hacia adelante, que es para lo que existe este
+    // registro. Se separan en vez de mezclarse.
+    const estrictas = registro.cerradas.filter((c) => c.velasDeRetraso === 0);
+    const be = balance(estrictas);
+    console.log(
+      be.n > 0
+        ? `   ESTRICTAS: ${be.n} · acierto ${(be.aciertos * 100).toFixed(0)}% · ` +
+          `PF ${be.pf.toFixed(2)} · ${be.esperanza.toFixed(3)}R ±${be.error.toFixed(3)}`
+        : "   ESTRICTAS: 0. TODAS se apuntaron con velas posteriores ya cerradas, asi que " +
+          "de momento esto no es una prueba hacia adelante sino un backtest con retraso.",
+    );
+    const retrasos = registro.cerradas
+      .map((c) => c.velasDeRetraso)
+      .filter((x): x is number => x != null);
+    if (retrasos.length && be.n < b.n) {
+      const medio = retrasos.reduce((x, y) => x + y, 0) / retrasos.length;
+      console.log(
+        `   Retraso al apuntar: ${medio.toFixed(1)} velas de media, ${Math.max(...retrasos)} la peor.`,
+      );
+    }
     if (b.n < 100) {
       console.log("Con menos de 100 cerradas, este numero es ruido. No decidas nada con el.");
     }

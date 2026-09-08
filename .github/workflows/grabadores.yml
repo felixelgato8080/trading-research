@@ -26,6 +26,17 @@
 # Los runners de GitHub estan en centros de datos de Estados Unidos, y Binance devuelve HTTP 451
 # desde ahi. Ya paso en Railway con la region de Virginia. Por eso aqui SOLO van los grabadores
 # de forex, que tiran de Yahoo. El bot de cripto necesita una IP fuera de EEUU.
+#
+# Y OJO CON LA TEMPORALIDAD: `div-video` SE FUE DE AQUI
+# ----------------------------------------------------
+# Trabaja con velas de 5 minutos. Revisarlo cada tres horas —y en la practica cada cinco, porque
+# el planificador de GitHub retrasa y se salta ejecuciones— hacia que TODA señal se apuntara con
+# la entrada ya ocurrida: medido el 8 sep, 6 de 6, entre 31 y 256 minutos tarde. Los precios no
+# quedaban falseados, pero el registro dejaba de ser una prueba hacia adelante para ser un
+# backtest con retraso, que es justo lo que no queremos.
+#
+# Se paso a la tarea local de Windows cada 15 minutos, que es gratis y no tiene tope de minutos.
+# Los dos que quedan aqui van en 1h y 4h, y para ellos tres horas si es una cadencia razonable.
 name: grabadores
 
 on:
@@ -73,7 +84,6 @@ jobs:
           mkdir -p registros
           npx tsx src/tools/servicioCli.ts --unavez \
             --smc=registros/registro-smc.json \
-            --divvideo=registros/div-video.json \
             --div4h1h=registros/div-4h1h.json
           echo "--- ficheros escritos ---"
           ls -la registros/
@@ -88,13 +98,13 @@ jobs:
         id: comprobar
         if: always()
         run: |
-          for f in registros/registro-smc.json registros/div-video.json registros/div-4h1h.json; do
+          for f in registros/registro-smc.json registros/div-4h1h.json; do
             if [ ! -s "$f" ]; then
               echo "::error::$f no existe o esta vacio: el grabador no escribio."
               exit 1
             fi
           done
-          echo "Los tres registros existen y no estan vacios."
+          echo "Los dos registros existen y no estan vacios."
 
       - name: Guardar el estado
         # Se guarda aunque el paso anterior fallara, pero SOLO si los ficheros pasaron la
@@ -103,7 +113,10 @@ jobs:
         run: |
           git config user.name "grabadores"
           git config user.email "grabadores@users.noreply.github.com"
-          git add registros/
+          # SOLO los suyos. `div-video` lo escribe la tarea local cada 15 minutos, y si este
+          # workflow lo añadiera commitearia la copia vieja del checkout, pisando pasadas que
+          # el portatil ya habia grabado.
+          git add registros/registro-smc.json registros/div-4h1h.json
           if git diff --staged --quiet; then
             echo "Sin cambios en el registro."
           else

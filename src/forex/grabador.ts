@@ -52,6 +52,26 @@ export interface Pendiente {
   /** Vela de la señal. Nada anterior o igual a esto puede abrirla. */
   tSeñal: number;
   caducaEn: number;
+  /**
+   * Cuantas velas habian cerrado ya DESPUES de la de la señal cuando se apunto.
+   *
+   * Cero es lo que hace de esto una prueba hacia adelante: la señal era la ultima vela cerrada
+   * y lo que vino despues no existia. Cualquier otro numero dice que la entrada —y quiza el
+   * resultado entero— ya habia ocurrido al apuntarla.
+   *
+   * Los PRECIOS no quedan falseados en ningun caso: la entrada es una orden limitada cuyo nivel
+   * sale de la vela de la señal, no de mirar lo que vino despues. Lo que se pierde es haberse
+   * comprometido antes, que es lo unico que este registro aporta sobre un backtest.
+   *
+   * SE GUARDA EL NUMERO Y NO UN SI/NO porque un retraso de una vela y uno de cincuenta no son
+   * lo mismo, y con el booleano no hay forma de separarlos despues. Medido el 8 sep sobre el
+   * registro de verdad, con un cron de tres horas sobre velas de 5 minutos: 6 de 6 con retraso,
+   * de 31 a 256 minutos.
+   *
+   * Opcional porque los registros abiertos antes de que existiera no lo tienen, y rellenarlo
+   * ahora seria inventar un dato que en su momento no se guardo.
+   */
+  velasDeRetraso?: number;
 }
 
 export interface Abierta extends Pendiente {
@@ -230,6 +250,9 @@ export function pasada<A>(
       r.pendientes.push({
         par, direccion: s.direccion, entrada: s.entrada, stop: s.stop, objetivo: s.objetivo,
         rr: s.rr, apuntada: ahora, tSeñal: c.t, caducaEn: c.t + paso * r.vigencia,
+        // Con el grabador al dia la señal ES la ultima vela cerrada y esto sale 0, que es lo
+        // que hace del registro una prueba hacia adelante y no un backtest con retraso.
+        velasDeRetraso: Math.max(0, Math.round((velas[hasta]!.t - c.t) / paso)),
       });
       res.nuevas += 1;
     }
