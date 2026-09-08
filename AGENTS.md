@@ -270,6 +270,7 @@ score 0 da −1,26R y score 1 da +0,81R).
 
 ```bash
 npm run sanidad -- --lista L.json --cache=V.json      # antes de medir nada
+npm run estado -- --bot=RUTA.json                     # TODO lo que esta vivo, en una pantalla
 npm run smc -- --lista L.json --cache=V.json          # SMC con todos los controles
 npm run barrido:smc -- --lista L.json --cache=V.json  # la superficie entera, en pips
 npm run grafico -- --lista L.json --cache=V.json      # dibujar operaciones reales
