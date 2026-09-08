@@ -44,6 +44,8 @@ import { velas as bajarVelas, type Vela, type Temporalidad } from "../forex/dato
 import { agregar } from "../forex/agregar";
 import { rsi } from "../forex/rsi";
 import { atr } from "../forex/multiTf";
+import { auditar, informeAuditoria } from "../forex/auditor";
+import { deForex } from "../forex/auditables";
 import {
   señales, type AjustesDivergencia, type AjustesEntrada,
 } from "../forex/divergencia";
@@ -194,6 +196,20 @@ async function main(): Promise<void> {
 
   const arranque = reg.pasadas === 0;
   const { registro, resumen } = pasada(reg, menores, proveedor, ahora);
+
+  // ---- LA AUDITORIA. Corre en cada pasada, sobre TODO lo cerrado, no solo lo de hoy. ---------
+  //
+  // Sobre todo porque un fallo introducido hoy puede volver imposibles operaciones grabadas hace
+  // meses, y auditar solo lo nuevo dejaria pasar justo eso. Cuesta milisegundos.
+  const auditoria = auditar(registro.cerradas.map(deForex), (p) => menores.get(p));
+  console.log(informeAuditoria(auditoria));
+  if (auditoria.anomalias.length > 0) {
+    console.error(
+      "HAY OPERACIONES IMPOSIBLES EN EL REGISTRO. No es una advertencia de estilo: alguno de " +
+        "los precios de arriba no existio nunca, asi que el resultado que salga de aqui no vale.",
+    );
+    process.exitCode = 1;
+  }
 
   if (existsSync(ruta)) copyFileSync(ruta, `${ruta}.bak`);
   writeFileSync(ruta, JSON.stringify(registro, null, 2));

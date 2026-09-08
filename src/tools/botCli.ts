@@ -22,6 +22,8 @@
  */
 import { readFileSync, writeFileSync, existsSync, copyFileSync } from "node:fs";
 import { velasBinance } from "../forex/binance";
+import { auditar, informeAuditoria } from "../forex/auditor";
+import { deBot } from "../forex/auditables";
 import { atr } from "../forex/multiTf";
 import { volatilidad } from "../forex/rupturas";
 import type { Vela } from "../forex/datos";
@@ -50,6 +52,12 @@ interface Cerrada {
   r: number;
   abierta: string;
   cerrada: string;
+  /** Distancia del stop inicial. Sin ella no se puede comprobar que la R declarada cuadre. */
+  riesgo?: number;
+  /** Dias de la señal, la entrada y la salida. Son lo que hace auditable esta operacion. */
+  diaSenal?: string;
+  diaEntrada?: string;
+  diaSalida?: string;
 }
 
 interface Guardado {
@@ -138,10 +146,14 @@ async function main(): Promise<void> {
 
   // ---- Mercados: recorrido de las velas NUEVAS de cada simbolo --------------------------
   const mercados = new Map<string, Mercado>();
+  // Las velas nuevas de cada moneda, en orden. Hacen falta aparte del maximo y el minimo para
+  // saber CUAL disparo el stop y a que abrio: sin eso no se puede cobrar bien un hueco.
+  const nuevas = new Map<string, Vela[]>();
   const dia = (t: number): string => new Date(t * 1000).toISOString().slice(0, 10);
   for (const [s, v] of datos) {
     const desde = g.ultimoDia[s];
     let maximo = -Infinity, minimo = Infinity, ultimo = 0;
+    const dias: Vela[] = [];
     // Solo velas CERRADAS: la ultima esta en curso.
     for (let i = 0; i < v.length - 1; i += 1) {
       const d = dia(v[i]!.t);
@@ -149,7 +161,9 @@ async function main(): Promise<void> {
       maximo = Math.max(maximo, v[i]!.h);
       minimo = Math.min(minimo, v[i]!.l);
       ultimo = v[i]!.c;
+      dias.push(v[i]!);
     }
+    nuevas.set(s, dias);
     if (Number.isFinite(maximo) && Number.isFinite(minimo)) {
       mercados.set(s, { simbolo: s, ultimo, maximo, minimo });
     }
@@ -157,6 +171,8 @@ async function main(): Promise<void> {
 
   // ---- Señales de la ultima vela cerrada ------------------------------------------------
   const señales: SeñalEntrada[] = [];
+  const diaDeSeñal = new Map<string, string>();
+  const diaDeEntrada = new Map<string, string>();
   for (const [s, v] of datos) {
     const i = v.length - 2;
     if (i < 20) continue;
@@ -166,13 +182,23 @@ async function main(): Promise<void> {
     if (av == null || !(av > 0)) continue;
     const d = volatilidad(v, a, 2).find((x) => x.i === i);
     if (!d) continue;
+    // LA ENTRADA ES LA APERTURA DE LA VELA SIGUIENTE, no el cierre de la que da la señal.
+    //
+    // El cierre de una vela es un precio que YA PASO cuando lo ves: para llenar ahi habria que
+    // haber sabido que iba a cerrar asi. El backtest que da el 18,9% entra en la apertura
+    // siguiente, y un registro hacia adelante que entre mejor que el backtest no lo valida:
+    // lo adorna.
+    const siguiente = v[i + 1];
+    if (!siguiente) continue;
     señales.push({
       simbolo: s,
       direccion: d.direccion,
       riesgo: av * 2,
-      precio: v[i]!.c,
+      precio: siguiente.o,
       fuerza: Math.abs(v[i]!.c - v[i]!.o) / av,
     });
+    diaDeSeñal.set(s, dia(v[i]!.t));
+    diaDeEntrada.set(s, dia(siguiente.t));
   }
 
   // ---- Decision --------------------------------------------------------------------------
@@ -184,21 +210,62 @@ async function main(): Promise<void> {
     if (o.tipo !== "CERRAR") continue;
     const previa = antes.get(o.simbolo);
     if (!previa) continue;
-    const salida = previa.nivelStop;
-    const bruto = previa.direccion === "LARGO"
-      ? salida - previa.entrada
-      : previa.entrada - salida;
+    const largo = previa.direccion === "LARGO";
+
+    // EL HUECO DE APERTURA. Se busca la PRIMERA vela nueva que toco el stop y se mira a que
+    // abrio: si abrio ya pasada del nivel, a ese nivel no llena nadie y la orden salta en la
+    // apertura, peor. Cobrarse el nivel regala la diferencia entera, y en el backtest esa
+    // diferencia valia el 13,4% del resultado.
+    const disparo = (nuevas.get(o.simbolo) ?? []).find(
+      (x) => (largo ? x.l <= previa.nivelStop : x.h >= previa.nivelStop),
+    );
+    const salida = disparo
+      ? (largo ? Math.min(previa.nivelStop, disparo.o) : Math.max(previa.nivelStop, disparo.o))
+      : previa.nivelStop;
+    const bruto = largo ? salida - previa.entrada : previa.entrada - salida;
     g.cerradas.push({
       simbolo: o.simbolo, direccion: previa.direccion, entrada: previa.entrada,
-      salida, r: bruto / previa.riesgo,
-      abierta: "", cerrada: ahora.slice(0, 10),
+      salida, r: bruto / previa.riesgo, riesgo: previa.riesgo,
+      abierta: previa.diaEntrada ?? "", cerrada: ahora.slice(0, 10),
+      diaSenal: previa.diaSenal, diaEntrada: previa.diaEntrada,
+      diaSalida: disparo ? dia(disparo.t) : undefined,
     });
   }
 
   g.estado = d.estadoFinal;
+  // Las posiciones que no existian antes se sellan con el dia de su señal y el de su entrada.
+  // Se hace AQUI y no dentro de `decidir` porque la decision no depende de ellos: son solo la
+  // prueba, y meterlos en la logica los volveria un dato del que algo puede acabar dependiendo.
+  for (const p of g.estado.posiciones) {
+    if (antes.has(p.simbolo)) continue;
+    p.diaSenal = diaDeSeñal.get(p.simbolo);
+    p.diaEntrada = diaDeEntrada.get(p.simbolo);
+  }
   g.ejecuciones += 1;
   g.ultimaEjecucion = ahora;
   for (const [s, v] of datos) g.ultimoDia[s] = dia(v[v.length - 2]!.t);
+
+  // ---- LA AUDITORIA. Sobre TODO lo cerrado, no solo lo de esta pasada. -----------------------
+  //
+  // Un fallo metido hoy puede volver imposibles operaciones grabadas hace meses, y auditar solo
+  // lo nuevo dejaria pasar justo eso.
+  const auditables = g.cerradas.map(deBot);
+  const auditoria = auditar(
+    auditables.filter((x): x is NonNullable<typeof x> => x !== null),
+    (s) => datos.get(s),
+  );
+  const sinDatos = auditables.filter((x) => x === null).length;
+  console.log(
+    `\n${informeAuditoria(auditoria)}` +
+      (sinDatos ? `\n   ${sinDatos} sin los datos necesarios para auditarlas.` : ""),
+  );
+  if (auditoria.anomalias.length > 0) {
+    console.error(
+      "HAY OPERACIONES IMPOSIBLES EN EL REGISTRO. No es una advertencia de estilo: alguno de " +
+        "los precios de arriba no existio nunca, asi que el resultado que salga de aqui no vale.",
+    );
+    process.exitCode = 1;
+  }
 
   if (existsSync(ruta)) copyFileSync(ruta, `${ruta}.bak`);
   writeFileSync(ruta, JSON.stringify(g, null, 2));

@@ -136,6 +136,33 @@ No hace falta redescubrirlas, y sobre todo no hay que reintroducirlas.
    49% y mandan los pips a −0,6 por operación. Mide siempre las dos cosas: acierto **y** pips
    ganados contra perdidos.
 
+10. **Arreglar el backtest no arregla el grabador.** El hueco de apertura (trampa 4) se corrigió
+    en `rupturas.ts` y siguió vivo meses en los tres grabadores, que son código aparte. Cuando
+    corrijas una trampa, busca la misma línea en `grabador.ts`, `grabadorCripto.ts` y `botCli.ts`.
+
+11. **Entrar al cierre de la vela de la señal es mirar el futuro.** Ese precio ya pasó cuando lo
+    ves. El bot en papel lo hacía, y por eso su registro hacia adelante habría salido MEJOR que
+    el backtest que debía validarlo — la peor forma de fallar, porque parece una buena noticia.
+    Se entra en la apertura de la vela siguiente, igual que el backtest.
+
+---
+
+## LA AUDITORÍA: INVARIANTES, NO CRITERIO
+
+`auditor.ts` comprueba en cada pasada que los números de cada operación sean **posibles**. No
+opina sobre si la estrategia es buena; pregunta si el precio de salida existió en alguna vela, si
+la entrada era alcanzable, si la salida fue posterior a la entrada y si la R declarada cuadra con
+los precios.
+
+Suena tonto y habría cazado tres de las once trampas de arriba. Corre en los tres grabadores
+(`grabar:smc`, `grabar:divergencia`, `grabar:cripto`) y en el bot, cuesta milisegundos, y si algo
+falla el proceso sale con código 1 y el cron se pone rojo.
+
+**Un agente que "revise las operaciones" es menos fiable que una invariante que no puede pasarlas
+por alto.** Si se te ocurre una comprobación nueva, añádela ahí con su prueba en negativo — una
+operación amañada que la obligue a saltar. Una invariante que nunca se ha visto fallar no está
+probada, está esperando.
+
 ---
 
 ## QUÉ HAY MEDIDO AHORA MISMO

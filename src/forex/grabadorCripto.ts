@@ -298,12 +298,16 @@ export function avanzar(
 
       // El stop primero: si en la vela se tocan stop y extremo, no sabemos el orden intravela.
       if (largo ? v.l <= p.nivelStop : v.h >= p.nivelStop) {
-        const bruto = (largo ? p.nivelStop - p.precioEntrada : p.precioEntrada - p.nivelStop) / p.riesgo;
+        // EL HUECO DE APERTURA. Si el dia ABRE ya pasado del nivel, a ese nivel no te llena
+        // nadie: la orden se dispara en la apertura, peor. Cobrarse el nivel regala la
+        // diferencia entera, y en el backtest esa diferencia valia el 13,4% del resultado.
+        const salida = largo ? Math.min(p.nivelStop, v.o) : Math.max(p.nivelStop, v.o);
+        const bruto = (largo ? salida - p.precioEntrada : p.precioEntrada - salida) / p.riesgo;
         cerrada = {
           ...p,
           ultimoDia: d,
           diaSalida: d,
-          precioSalida: p.nivelStop,
+          precioSalida: salida,
           rBruto: bruto,
           r: bruto - aj.costeR,
           motivo: p.nivelStop === (largo ? p.precioEntrada - p.riesgo : p.precioEntrada + p.riesgo)

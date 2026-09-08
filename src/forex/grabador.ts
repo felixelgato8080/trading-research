@@ -64,6 +64,17 @@ export interface Cerrada extends Abierta {
   salida: number;
   r: number;
   motivo: "STOP" | "OBJETIVO";
+  /**
+   * Vela que cerro la operacion.
+   *
+   * `cerrada` es cuando el grabador se ENTERO, que no es lo mismo: si estuvo apagado un fin de
+   * semana, se entera el lunes de algo que paso el viernes. Sin este campo no se puede comprobar
+   * que el precio de salida existiera de verdad, ni que la salida fuera posterior a la entrada.
+   *
+   * Opcional porque los registros abiertos antes de que existiera no lo tienen, y reescribirlos
+   * ahora seria inventar un dato que en su momento no se guardo.
+   */
+  tSalida?: number;
 }
 
 export interface Registro<A> {
@@ -171,11 +182,27 @@ export function pasada<A>(
         const largo = a.direccion === "LARGO";
         // El stop gana los empates: no se sabe el orden dentro de la vela.
         if (largo ? c.l <= a.stop : c.h >= a.stop) {
-          cerrada = { ...a, cerrada: ahora, salida: a.stop, r: -1, motivo: "STOP" };
+          // EL HUECO. Si la vela ABRIO ya pasada del stop, a ese nivel no llena nadie: la orden
+          // se dispara en la apertura, peor. Cobrarse el nivel regala la diferencia entera.
+          const salida = largo ? Math.min(a.stop, c.o) : Math.max(a.stop, c.o);
+          const riesgo = Math.abs(a.entrada - a.stop);
+          const r = riesgo > 0
+            ? (largo ? salida - a.entrada : a.entrada - salida) / riesgo
+            : -1;
+          cerrada = { ...a, cerrada: ahora, tSalida: c.t, salida, r, motivo: "STOP" };
           break;
         }
         if (largo ? c.h >= a.objetivo : c.l <= a.objetivo) {
-          cerrada = { ...a, cerrada: ahora, salida: a.objetivo, r: a.rr, motivo: "OBJETIVO" };
+          // El hueco tambien va en esta direccion, y aqui llena MEJOR: una orden limitada de
+          // venta en 120 con el mercado abriendo en 130 se ejecuta en 130. Apuntar 120 seria
+          // conservador, pero seria un precio que no existio, y eso es justo lo que la auditoria
+          // no puede distinguir de un fallo.
+          const salida = largo ? Math.max(a.objetivo, c.o) : Math.min(a.objetivo, c.o);
+          const riesgo = Math.abs(a.entrada - a.stop);
+          const r = riesgo > 0
+            ? (largo ? salida - a.entrada : a.entrada - salida) / riesgo
+            : a.rr;
+          cerrada = { ...a, cerrada: ahora, tSalida: c.t, salida, r, motivo: "OBJETIVO" };
           break;
         }
       }

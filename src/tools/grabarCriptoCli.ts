@@ -30,6 +30,8 @@ import {
   type Cerrada,
 } from "../forex/grabadorCripto";
 import { simularCartera, type Operacion } from "../forex/cartera";
+import { auditar, informeAuditoria } from "../forex/auditor";
+import { deCripto } from "../forex/auditables";
 
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 function txt(n: string): string | undefined {
@@ -262,6 +264,21 @@ async function main(): Promise<void> {
   }
 
   informe(av.registro);
+
+  // ---- LA AUDITORIA. Sobre TODO lo cerrado, no solo lo de hoy. -------------------------------
+  //
+  // Un fallo introducido hoy puede volver imposibles operaciones grabadas hace meses, y auditar
+  // solo lo nuevo dejaria pasar justo eso. Cuesta milisegundos.
+  const auditoria = auditar(av.registro.cerradas.map(deCripto), (s) => datos.get(s));
+  console.log(`\n${informeAuditoria(auditoria)}`);
+  if (auditoria.anomalias.length > 0) {
+    console.error(
+      "HAY OPERACIONES IMPOSIBLES EN EL REGISTRO. No es una advertencia de estilo: alguno de " +
+        "los precios de arriba no existio nunca, asi que el resultado que salga de aqui no vale.",
+    );
+    process.exitCode = 1;
+  }
+
   console.log(`\nGuardado en ${ruta}`);
 }
 

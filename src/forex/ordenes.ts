@@ -31,6 +31,15 @@ export interface Posicion {
   nivelStop: number;
   /** Mejor precio alcanzado a favor, para el trailing. */
   extremo: number;
+  /**
+   * Dia de la vela que dio la señal y dia en que se lleno la entrada. Solo se guardan para poder
+   * auditar despues: nada de la decision depende de ellos.
+   *
+   * Opcionales porque las posiciones abiertas antes de que existieran no los tienen, y
+   * rellenarlos ahora seria inventar una fecha que en su momento no se apunto.
+   */
+  diaSenal?: string;
+  diaEntrada?: string;
 }
 
 export interface SeñalEntrada {
