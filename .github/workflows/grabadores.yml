@@ -1,0 +1,93 @@
+# Los grabadores en papel, corriendo en GitHub cada tres horas.
+#
+# POR QUE ESTO ES MEJOR QUE UN SERVIDOR
+# ------------------------------------
+# El estado se COMMITEA al repositorio. Eso convierte el registro en algo que no se puede
+# retocar sin que se note: cada precio grabado queda en el historial de git, con su fecha y su
+# hash. Si alguien —yo incluido— cambiara una entrada vieja para que el resultado saliera mejor,
+# aparecería como un diff.
+#
+# Para una prueba hacia adelante cuyo valor entero es que no se puede contaminar, esa propiedad
+# vale mas que la comodidad de un servidor.
+#
+# CADA TRES HORAS Y NO CADA HORA
+# ------------------------------
+# Medido, no estimado: un grabador tarda 16 segundos, y la vuelta entera con instalacion y
+# pruebas ronda los 2,5 minutos. Cada tres horas son ~600 minutos al mes, holgado dentro de los
+# 2.000 gratis de un repositorio privado. Cada hora saldrian ~1.800: cabe, pero sin margen para
+# que un mes con reintentos se pase.
+#
+# Y no se pierde nada por espaciarlo: el grabador se pone al dia solo, y hay una prueba que
+# comprueba que pasar doce velas de golpe da exactamente las mismas señales, con los mismos
+# precios, que haberlas pasado una a una.
+#
+# OJO CON BINANCE
+# ---------------
+# Los runners de GitHub estan en centros de datos de Estados Unidos, y Binance devuelve HTTP 451
+# desde ahi. Ya paso en Railway con la region de Virginia. Por eso aqui SOLO van los grabadores
+# de forex, que tiran de Yahoo. El bot de cripto necesita una IP fuera de EEUU.
+name: grabadores
+
+on:
+  schedule:
+    - cron: "5 */3 * * *"
+  workflow_dispatch:        # para poder lanzarlo a mano y ver que funciona
+
+# Sin esto no puede escribir el estado de vuelta al repositorio.
+permissions:
+  contents: write
+
+# Dos pasadas a la vez escribiendo el mismo registro lo corromperian. Y no se cancela la que ya
+# corre: dejarla a medias podria dejar el fichero escrito por la mitad.
+concurrency:
+  group: grabadores
+  cancel-in-progress: false
+
+jobs:
+  grabar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # Las pruebas ANTES de grabar. Si el codigo esta roto, el registro no se toca: es
+      # preferible perder una pasada que meter datos de una version que no pasa sus pruebas.
+      - name: Pruebas
+        run: node --import tsx --test test/*.test.ts
+
+      - name: Una pasada de los grabadores
+        run: |
+          mkdir -p registros
+          npx tsx src/tools/servicioCli.ts --unavez \
+            --smc=registros/registro-smc.json \
+            --divvideo=registros/div-video.json \
+            --div4h1h=registros/div-4h1h.json || true
+
+      # `|| true` arriba y este paso aparte: que falle la descarga de un par no debe tirar el
+      # commit de lo que si se grabo.
+      - name: Guardar el estado
+        run: |
+          git config user.name "grabadores"
+          git config user.email "grabadores@users.noreply.github.com"
+          git add registros/
+          if git diff --staged --quiet; then
+            echo "Sin cambios en el registro."
+          else
+            git commit -m "registro: $(date -u +%Y-%m-%dT%H:%MZ)"
+            # Alguien pudo commitear mientras corriamos. Se reintenta sobre lo suyo en vez de
+            # forzar: forzar borraria su trabajo.
+            for i in 1 2 3; do
+              git pull --rebase --autostash && git push && exit 0
+              sleep 10
+            done
+            echo "No se pudo empujar el estado tras tres intentos."
+            exit 1
+          fi

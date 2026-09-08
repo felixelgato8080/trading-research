@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.env
+.env.*
+!.env.example
+# El estado de los grabadores SI se versiona a proposito: es lo que hace que un precio
+# grabado no se pueda reescribir sin que aparezca en el historial.
