@@ -65,13 +65,24 @@ async function main(): Promise<void> {
     moverABreakeven: false, costeFraccion: costeBps / 10_000,
   };
 
-  const correrCon = (aj: AjustesPiramide, riesgoPico: number) => {
+  /**
+   * `recorte` limita las velas a un tramo del calendario ANTES de simular.
+   *
+   * Se parte la serie, no las operaciones ya calculadas. Repartir a posteriori dejaria piramides
+   * empezadas en una mitad y terminadas en la otra, y las dos mitades dejarian de ser
+   * experimentos independientes.
+   */
+  const correrCon = (
+    aj: AjustesPiramide, riesgoPico: number, recorte?: (v: Vela[]) => Vela[],
+  ) => {
     const ops: Operacion[] = [];
     let simultaneas = 0;
     let maxSim = 0;
     let unidadesTotal = 0;
     const rs: number[] = [];
-    for (const [s, v] of datos) {
+    for (const [s, vTodo] of datos) {
+      const v = recorte ? recorte(vTodo) : vTodo;
+      if (v.length < 100) continue;
       const a = atr(v, 14);
       const señales = volatilidad(v, a, 2);
       for (const dir of ["LARGO", "CORTO"] as const) {
@@ -128,6 +139,29 @@ async function main(): Promise<void> {
     `${"exp R".padStart(14)}${"anual".padStart(9)}${"caida".padStart(9)}` +
     `${"maxU".padStart(6)}${"juntas".padStart(8)}`;
 
+  // ---- LAS DOS MITADES DEL CALENDARIO -----------------------------------------------------
+  //
+  // Es la prueba que se le ha exigido a todo lo que se rechazo, y hay que exigirsela igual a lo
+  // primero que sale bien. Si la ventaja de la piramide solo aparece en una mitad, es ruido.
+  const tiempos = [...datos.values()].flat().map((x) => x.t).sort((a, b) => a - b);
+  const corte = tiempos[Math.floor(tiempos.length / 2)] ?? 0;
+  const f = (n: number) => new Date(n * 1000).toISOString().slice(0, 7);
+
+  console.log("LAS DOS MITADES DEL CALENDARIO (simuladas por separado, no repartidas)");
+  console.log(CAB);
+  console.log("-".repeat(96));
+  for (const [etq, filtro] of [
+    [`1a mitad (hasta ${f(corte)})`, (v: Vela[]) => v.filter((c) => c.t < corte)],
+    [`2a mitad (desde ${f(corte)})`, (v: Vela[]) => v.filter((c) => c.t >= corte)],
+  ] as Array<[string, (v: Vela[]) => Vela[]]>) {
+    for (const max of [1, 2]) {
+      console.log(
+        fila(`${etq} · tope ${max}`, correrCon({ ...BASE, maxUnidades: max }, riesgoTotal, filtro)),
+      );
+    }
+  }
+
+  console.log("");
   console.log("CUANTAS UNIDADES (todas con el MISMO riesgo en el pico)");
   console.log(CAB);
   console.log("-".repeat(96));

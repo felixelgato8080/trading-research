@@ -49,7 +49,7 @@ sostienen están en `src/forex/grabador.ts`.
 
 ```bash
 npm install
-npm test                                              # 437 pruebas
+npm test                                              # 429 pruebas
 npm run descargar -- --lista L.json --tf=1h --salida=v.json
 npm run sanidad   -- --lista L.json --cache=v.json    # antes de medir nada
 npm run divergencia -- --lista L.json --mayor=4h.json --menor=1h.json
