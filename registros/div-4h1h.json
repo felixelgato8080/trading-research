@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "nombre": "divergencia",
+  "inicio": "2026-09-08T01:09:08.916Z",
+  "ultima": "2026-09-08T01:09:08.916Z",
+  "pasadas": 1,
+  "ajustes": {
+    "modo": "4h1h",
+    "div": {
+      "periodoRsi": 14,
+      "confirmacion": 2,
+      "umbralAlto": 70,
+      "minSeparacion": 3,
+      "maxSeparacion": 60,
+      "exigirFueraDelCanal": true
+    },
+    "ent": {
+      "zona": {
+        "minHueco": 0.2,
+        "minEmpuje": 1,
+        "vigencia": 60,
+        "esperaBloque": 20,
+        "colchon": 0.1,
+        "objetivoR": 2,
+        "radioLiquidez": 0.5,
+        "toquesLiquidez": 3,
+        "memoriaHuecos": 50
+      },
+      "esperaZona": 40,
+      "esperaEntrada": 60,
+      "colchon": 0.1,
+      "stop": "ZONA",
+      "objetivo": "LIQUIDEZ",
+      "objetivoR": 2,
+      "rrMinimo": 1,
+      "minRiesgoAtr": 0.5
+    }
+  },
+  "costeBps": 0.6,
+  "vigencia": 60,
+  "pendientes": [],
+  "abiertas": [],
+  "cerradas": [],
+  "vistoHasta": {
+    "EURUSD=X": 1788829200,
+    "GBPUSD=X": 1788829200,
+    "USDJPY=X": 1788829200,
+    "USDCHF=X": 1788829200,
+    "AUDUSD=X": 1788829200,
+    "USDCAD=X": 1788829200,
+    "NZDUSD=X": 1788829200,
+    "EURJPY=X": 1788829200,
+    "EURGBP=X": 1788829200,
+    "GBPJPY=X": 1788829200,
+    "AUDJPY=X": 1788829200,
+    "CADJPY=X": 1788829200
+  },
+  "discrepancias": []
+}
