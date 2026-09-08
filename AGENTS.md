@@ -199,8 +199,26 @@ probada, está esperando.
 
 ## QUÉ HAY MEDIDO AHORA MISMO
 
-**Sobrevive:** ruptura de volatilidad en cripto diario. 21,3% anual, 37% de caída máxima,
-exposición 0,9x, 30 monedas de Binance. Corriendo en papel.
+**Sobrevive:** ruptura de volatilidad en cripto diario. 18,9% anual con el coste medido, 38% de
+caída máxima, exposición 0,9x. Corriendo en papel.
+
+El 8 sep el universo pasó de **30 a 74 monedas** de Binance. Los filtros, sobre las 150 de más
+volumen: ≥730 velas diarias, coste medido en el libro ≤60 pb, y fuera estables, acciones
+tokenizadas (`NVDAB`, `TSLAB`…, que siguen a un subyacente con horario de bolsa) y envueltas
+duplicadas (`WBTC` es `BTC`). Sube el ritmo de **12 a 26 operaciones al mes**.
+
+**La razón de ampliar es el ritmo del registro hacia adelante, NO el número del backtest.** Sobre
+las 45 nuevas el backtest da +0,295R contra +0,135R de las 30 viejas, y **eso no hay que
+creérselo**: la lista de hoy son las monedas que sobrevivieron, y las nuevas dan +0,111R en la
+primera mitad del calendario y +0,480R en la segunda, que es justo la ventana de la que solo
+quedan los supervivientes. El registro hacia adelante no tiene ese sesgo, y por eso lo que
+importa es que acumule al doble de velocidad.
+
+**Y la cola manda:** el 5% mejor de las operaciones aporta el 206% del resultado en las 30 viejas
+y el 117% en las nuevas; quitándolo, las dos se vuelven negativas. La mediana está en −0,7R. Eso
+no es un defecto, es la definición de seguir tendencias —el resto de la familia corta la cola con
+un objetivo fijo y por eso pierde— pero significa que la sigma de siempre subestima la muestra
+que hace falta, porque la distribución no se parece en nada a una normal.
 
 **Candidato sin demostrar:** SMC en forex 1h (impulso 2,5 ATR, colchón 0,5, objetivo 3R).
 Vuelto a medir el 8 sep con el simulador arreglado, 25 pares, 431.675 velas, coste 1 pb:
