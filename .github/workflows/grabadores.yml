@@ -80,6 +80,13 @@ jobs:
 
       - name: Comprobar que de verdad se grabo algo
         # El paso anterior podria terminar bien sin haber escrito nada. Esto lo hace imposible.
+        #
+        # `always()` porque el grabador ahora sale con codigo 1 cuando la AUDITORIA encuentra una
+        # operacion imposible. Eso tiene que poner el workflow en rojo, pero no tiene que costar
+        # ademas la pasada: lo grabado ya esta escrito y una pasada perdida no se recupera, porque
+        # una prueba hacia adelante depende de CUANDO se apunto cada señal.
+        id: comprobar
+        if: always()
         run: |
           for f in registros/registro-smc.json registros/div-video.json registros/div-4h1h.json; do
             if [ ! -s "$f" ]; then
@@ -90,6 +97,9 @@ jobs:
           echo "Los tres registros existen y no estan vacios."
 
       - name: Guardar el estado
+        # Se guarda aunque el paso anterior fallara, pero SOLO si los ficheros pasaron la
+        # comprobacion: commitear un registro vacio o a medias seria peor que no commitear.
+        if: always() && steps.comprobar.outcome == 'success'
         run: |
           git config user.name "grabadores"
           git config user.email "grabadores@users.noreply.github.com"

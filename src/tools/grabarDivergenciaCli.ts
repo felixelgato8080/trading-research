@@ -197,19 +197,6 @@ async function main(): Promise<void> {
   const arranque = reg.pasadas === 0;
   const { registro, resumen } = pasada(reg, menores, proveedor, ahora);
 
-  // ---- LA AUDITORIA. Corre en cada pasada, sobre TODO lo cerrado, no solo lo de hoy. ---------
-  //
-  // Sobre todo porque un fallo introducido hoy puede volver imposibles operaciones grabadas hace
-  // meses, y auditar solo lo nuevo dejaria pasar justo eso. Cuesta milisegundos.
-  const auditoria = auditar(registro.cerradas.map(deForex), (p) => menores.get(p));
-  console.log(informeAuditoria(auditoria));
-  if (auditoria.anomalias.length > 0) {
-    console.error(
-      "HAY OPERACIONES IMPOSIBLES EN EL REGISTRO. No es una advertencia de estilo: alguno de " +
-        "los precios de arriba no existio nunca, asi que el resultado que salga de aqui no vale.",
-    );
-    process.exitCode = 1;
-  }
 
   if (existsSync(ruta)) copyFileSync(ruta, `${ruta}.bak`);
   writeFileSync(ruta, JSON.stringify(registro, null, 2));
@@ -265,6 +252,20 @@ async function main(): Promise<void> {
     if (b.n < 100) {
       console.log("Con menos de 100 cerradas este numero es ruido. No decidas nada con el.");
     }
+  }
+
+  // ---- LA AUDITORIA. Corre en cada pasada, sobre TODO lo cerrado, no solo lo de hoy. ---------
+  //
+  // Sobre todo porque un fallo introducido hoy puede volver imposibles operaciones grabadas hace
+  // meses, y auditar solo lo nuevo dejaria pasar justo eso. Cuesta milisegundos.
+  const auditoria = auditar(registro.cerradas.map(deForex), (p) => menores.get(p));
+  console.log(informeAuditoria(auditoria));
+  if (auditoria.anomalias.length > 0) {
+    console.error(
+      "HAY OPERACIONES IMPOSIBLES EN EL REGISTRO. No es una advertencia de estilo: alguno de " +
+        "los precios de arriba no existio nunca, asi que el resultado que salga de aqui no vale.",
+    );
+    process.exitCode = 1;
   }
 
   console.log(`\nGuardado en ${ruta}. No se ha enviado ninguna orden a ningun sitio.`);
