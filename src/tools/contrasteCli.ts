@@ -105,13 +105,21 @@ async function main(): Promise<void> {
       const r = rsi(may.map((v) => v.c), div.periodoRsi);
       const a = atr(men, 14);
       for (const s of señales(may, r, men, a, div, ent)) {
-        const res = simular(men, s, (s.entrada * costeBps) / 10_000, maxVelas);
+        const coste = (s.entrada * costeBps) / 10_000;
+        const res = simular(men, s, coste, maxVelas);
         if (!res) continue;
+        // La misma operacion medida contra el precio PEDIDO, para poder comparar con las que se
+        // grabaron cuando el grabador aun no guardaba el llenado real.
+        const riesgo = Math.abs(s.entrada - s.stop);
+        const largo = s.direccion === "LARGO";
+        const rPlaneado = riesgo > 0
+          ? ((largo ? res.salida - s.entrada : s.entrada - res.salida) - coste) / riesgo
+          : res.r;
         // El grabador apunta `tSeñal` como el momento de la vela de ENTRADA en la temporalidad
         // menor, asi que aqui hay que usar el mismo instante o no emparejaria nada.
         predichas.push({
           par, tSeñal: men[s.i]!.t,
-          entrada: s.entrada, stop: s.stop, objetivo: s.objetivo, r: res.r,
+          entrada: s.entrada, stop: s.stop, objetivo: s.objetivo, r: res.r, rPlaneado,
         });
       }
     } catch {

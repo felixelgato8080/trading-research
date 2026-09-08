@@ -149,3 +149,46 @@ test("una diferencia minuscula de redondeo no cuenta como discrepancia", () => {
   assert.equal(c.preciosDistintos.length, 0);
   assert.equal(c.resultadosDistintos.length, 0);
 });
+
+// ---------------------------------------------------------------------------------------
+// SE COMPARA COMO SE MIDIO
+// ---------------------------------------------------------------------------------------
+//
+// El grabador no siempre guardo el precio al que se llenaba de verdad: medía la R contra el
+// PEDIDO. El backtest la mide contra el conseguido, y en una entrada con hueco eso basta para
+// que discrepen sin que nada este roto. Exigirle a una operacion vieja el numero de hoy seria
+// acusarla de un fallo por haber sido grabada antes, y ese ruido taparia los fallos de verdad.
+
+const vieja = (extra: Partial<Cerrada> = {}): Cerrada => ({
+  par: "X", direccion: "LARGO", entrada: 100, stop: 90, objetivo: 130, rr: 3,
+  apuntada: "d0", tSeñal: 0, caducaEn: 9999, abierta: "d1", tEntrada: 3600,
+  cerrada: "d2", salida: 90, r: -1.233, motivo: "STOP", ...extra,
+});
+const predichaVieja = (r: number, rPlaneado?: number): Predicha => ({
+  par: "X", tSeñal: 0, entrada: 100, stop: 90, objetivo: 130, r, rPlaneado,
+});
+
+test("SIN llenado real guardado se compara contra la R MEDIDA IGUAL, y cuadra", () => {
+  // El backtest da -1,006 midiendo contra el llenado y -1,233 midiendo contra el pedido, que es
+  // como se grabo. Contra la suya cuadra, asi que no hay nada que denunciar.
+  const c = contrastar([vieja()], [predichaVieja(-1.006, -1.233)], 0, 9999);
+  assert.equal(c.resultadosDistintos.length, 0);
+  assert.match(veredicto(c), /Sin discrepancias graves/);
+});
+
+test("SIN llenado real, pero si ni asi cuadra, SIGUE siendo grave", () => {
+  const c = contrastar([vieja()], [predichaVieja(-1.006, 2.5)], 0, 9999);
+  assert.equal(c.resultadosDistintos.length, 1, "la excusa no es haber sido grabada antes");
+});
+
+test("CON llenado real guardado se compara contra la R de hoy", () => {
+  const c = contrastar([vieja({ entradaReal: 100 })], [predichaVieja(-1.006, -1.233)], 0, 9999);
+  assert.equal(c.resultadosDistintos.length, 1, "aqui ya no hay excusa");
+  assert.match(veredicto(c), /GRAVE/);
+});
+
+test("si el backtest no da la cifra planeada, se usa la que tenga", () => {
+  // Un backtest viejo que no la calcule no puede tumbar la comparacion entera.
+  const c = contrastar([vieja({ r: -1.006 })], [predichaVieja(-1.006)], 0, 9999);
+  assert.equal(c.resultadosDistintos.length, 0);
+});

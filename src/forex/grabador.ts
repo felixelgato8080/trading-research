@@ -77,6 +77,19 @@ export interface Pendiente {
 export interface Abierta extends Pendiente {
   abierta: string;
   tEntrada: number;
+  /**
+   * El precio al que se lleno DE VERDAD, que no siempre es el pedido.
+   *
+   * Una orden limitada nunca se llena peor que su precio: si la vela abre ya pasada del nivel,
+   * te llenan en la apertura, MEJOR. `entrada` sigue siendo la que se apunto antes de que el
+   * precio llegara y NO se toca —esa es la regla 2— asi que el llenado real va aparte.
+   *
+   * Sin esto el registro discrepaba del backtest en operaciones con los MISMOS precios, que es
+   * la señal de que uno de los dos simuladores esta mal. Lo caza `npm run contraste`.
+   *
+   * Opcional porque las operaciones abiertas antes de que existiera no lo tienen.
+   */
+  entradaReal?: number;
 }
 
 export interface Cerrada extends Abierta {
@@ -205,9 +218,12 @@ export function pasada<A>(
           // EL HUECO. Si la vela ABRIO ya pasada del stop, a ese nivel no llena nadie: la orden
           // se dispara en la apertura, peor. Cobrarse el nivel regala la diferencia entera.
           const salida = largo ? Math.min(a.stop, c.o) : Math.max(a.stop, c.o);
+          // El riesgo es el PLANEADO —sobre el se dimensiona la posicion— pero el resultado se
+          // mide contra el precio al que se lleno de verdad.
           const riesgo = Math.abs(a.entrada - a.stop);
+          const desde = a.entradaReal ?? a.entrada;
           const r = riesgo > 0
-            ? (largo ? salida - a.entrada : a.entrada - salida) / riesgo
+            ? (largo ? salida - desde : desde - salida) / riesgo
             : -1;
           cerrada = { ...a, cerrada: ahora, tSalida: c.t, salida, r, motivo: "STOP" };
           break;
@@ -219,8 +235,9 @@ export function pasada<A>(
           // no puede distinguir de un fallo.
           const salida = largo ? Math.max(a.objetivo, c.o) : Math.min(a.objetivo, c.o);
           const riesgo = Math.abs(a.entrada - a.stop);
+          const desde = a.entradaReal ?? a.entrada;
           const r = riesgo > 0
-            ? (largo ? salida - a.entrada : a.entrada - salida) / riesgo
+            ? (largo ? salida - desde : desde - salida) / riesgo
             : a.rr;
           cerrada = { ...a, cerrada: ahora, tSalida: c.t, salida, r, motivo: "OBJETIVO" };
           break;
@@ -268,7 +285,14 @@ export function pasada<A>(
         if (c.t > p.caducaEn) break;
         const largo = p.direccion === "LARGO";
         if (largo ? c.l <= p.entrada : c.h >= p.entrada) {
-          r.abiertas.push({ ...p, abierta: ahora, tEntrada: c.t });
+          // EL HUECO EN LA ENTRADA. La orden esta posada en `p.entrada`. Si la vela ABRE ya
+          // pasada de ese nivel, te llenan en la apertura, mejor. El precio APUNTADO no se
+          // toca: se guarda aparte el que de verdad se consiguio.
+          const real = largo ? Math.min(p.entrada, c.o) : Math.max(p.entrada, c.o);
+          // Si el hueco se paso tambien del stop, la operacion no existe: quedarias largo con
+          // el stop por encima de tu llenado. Se deja pendiente a que vuelva un precio sensato.
+          if (largo ? real <= p.stop : real >= p.stop) continue;
+          r.abiertas.push({ ...p, abierta: ahora, tEntrada: c.t, entradaReal: real });
           res.abiertas += 1;
           abierta = true;
           break;

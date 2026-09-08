@@ -36,6 +36,14 @@ export interface Predicha {
   objetivo: number;
   /** Resultado que el backtest dice que habria tenido, en R. */
   r: number;
+  /**
+   * El mismo resultado pero medido contra el precio PEDIDO en vez del conseguido.
+   *
+   * Existe para comparar cada operacion como se midio en su momento. El grabador no siempre
+   * guardo el llenado real; exigirle hoy la cifra que sale de medir contra el llenado seria
+   * acusarla de un fallo por haber sido grabada antes, y ese ruido taparia los fallos de verdad.
+   */
+  rPlaneado?: number;
 }
 
 export interface Discrepancia {
@@ -55,6 +63,7 @@ export interface Contraste {
   preciosDistintos: Discrepancia[];
   /** Mismos precios, distinto resultado: el simulador esta mal. */
   resultadosDistintos: Discrepancia[];
+
   /** Esperanza de las emparejadas, en el registro y en el backtest. */
   esperanzaRegistro: number;
   esperanzaBacktest: number;
@@ -116,10 +125,16 @@ export function contrastar(
     }
     paresR.push(c.r);
     paresB.push(p.r);
-    if (!cerca(p.r, c.r, 1e-3)) {
+    // SE COMPARA COMO SE MIDIO. Una operacion sin `entradaReal` se grabo cuando el grabador
+    // medía la R contra el precio PEDIDO, no contra el conseguido. Exigirle hoy el numero que
+    // sale de medir contra el conseguido seria acusarla de un fallo por haber sido grabada
+    // antes, y ademas taparia los fallos de verdad con ruido. El backtest sabe dar las dos
+    // cifras, asi que se le pide la que toca.
+    const suya = c.entradaReal === undefined ? (p.rPlaneado ?? p.r) : p.r;
+    if (!cerca(suya, c.r, 1e-3)) {
       resultadosDistintos.push({
         par: c.par, tSeñal: c.tSeñal,
-        detalle: `grabado ${c.r.toFixed(3)}R · backtest ${p.r.toFixed(3)}R`,
+        detalle: `grabado ${c.r.toFixed(3)}R · backtest ${suya.toFixed(3)}R`,
       });
     }
   }

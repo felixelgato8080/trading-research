@@ -256,3 +256,82 @@ test("la marca viaja con la operacion hasta que se cierra", () => {
   assert.equal(c.registro.cerradas.length, 1);
   assert.ok(c.registro.cerradas[0]!.velasDeRetraso! > 0);
 });
+
+// ---------------------------------------------------------------------------------------
+// EL HUECO EN LA ENTRADA
+// ---------------------------------------------------------------------------------------
+//
+// Lo caza `npm run contraste`, no el auditor: el precio APUNTADO existia en su vela, asi que
+// las invariantes lo dan por bueno. Lo que fallaba era otra cosa —el registro decia -1,233R
+// donde el backtest, sobre los MISMOS precios, decia -1,006R— y eso solo se ve comparando los
+// dos simuladores operacion a operacion.
+
+/** Señal fija en la vela 34 con entrada en 100, para fabricar el hueco a mano. */
+const enCien: Proveedor = (_par, velas) =>
+  velas.length > 35
+    ? [{ i: 34, direccion: "LARGO", entrada: 100, stop: 90, objetivo: 130, rr: 3 }]
+    : [];
+
+const conHueco = (...cola: Vela[]): Vela[] => [
+  ...Array.from({ length: 34 }, (_, k) => v(k, 100, 101, 99, 100)),
+  v(34, 100, 101, 99.5, 100),   // la señal. Su minimo NO llega a 100 por abajo del todo
+  ...cola,
+];
+
+const tres = (velas: Vela[]) => {
+  const reg = registroNuevo("h", "d0", {}, 0, 50);
+  const a = pasada(reg, new Map([["X", velas.slice(0, 35)]]), enCien, "d1");
+  const b = pasada(a.registro, new Map([["X", velas]]), enCien, "d2");
+  return pasada(b.registro, new Map([["X", velas]]), enCien, "d3").registro;
+};
+
+test("UNA LIMITADA NO SE LLENA PEOR QUE SU PRECIO: si la vela abre pasada, llena MEJOR", () => {
+  // Compra limitada en 100 y la vela 35 abre en 95. A 100 no compra nadie: te dan 95.
+  const reg = tres(conHueco(
+    v(35, 95, 96, 94, 95), v(36, 95, 135, 94, 130), v(37, 130, 131, 129, 130),
+  ));
+  assert.equal(reg.cerradas.length, 1);
+  const c = reg.cerradas[0]!;
+  assert.equal(c.entrada, 100, "el precio APUNTADO no se toca: esa es la regla 2");
+  assert.equal(c.entradaReal, 95, "el llenado de verdad va aparte");
+  assert.equal(c.r, 3.5, "(130 - 95) / 10, medido contra el llenado y con el riesgo PLANEADO");
+});
+
+test("sin hueco, el llenado real es el pedido y la R no cambia", () => {
+  const reg = tres(conHueco(
+    v(35, 101, 102, 99, 100), v(36, 100, 101, 88, 89), v(37, 89, 90, 88, 89),
+  ));
+  const c = reg.cerradas[0]!;
+  assert.equal(c.entradaReal, 100);
+  assert.equal(c.r, -1);
+});
+
+test("SI EL HUECO SE PASA TAMBIEN DEL STOP no se abre: seria un largo con el stop encima", () => {
+  // La vela 35 abre en 85, por debajo del stop de 90. Se queda pendiente esperando un precio
+  // sensato en vez de nacer con el planteamiento roto.
+  const reg = tres(conHueco(
+    v(35, 85, 86, 84, 85), v(36, 85, 86, 84, 85), v(37, 85, 86, 84, 85),
+  ));
+  assert.equal(reg.abiertas.length, 0);
+  assert.equal(reg.cerradas.length, 0);
+  assert.equal(reg.pendientes.length, 1, "sigue esperando, no se descarta");
+});
+
+test("EN CORTO es simetrico", () => {
+  const alReves: Proveedor = (_par, velas) =>
+    velas.length > 35
+      ? [{ i: 34, direccion: "CORTO", entrada: 100, stop: 110, objetivo: 70, rr: 3 }]
+      : [];
+  const velas = [
+    ...Array.from({ length: 34 }, (_, k) => v(k, 100, 101, 99, 100)),
+    v(34, 100, 100.5, 99, 100),
+    v(35, 105, 106, 104, 105),   // abre en 105, por encima del limite de venta de 100
+    v(36, 105, 106, 69, 70), v(37, 70, 71, 69, 70),
+  ];
+  const reg = registroNuevo("h", "d0", {}, 0, 50);
+  const a = pasada(reg, new Map([["X", velas.slice(0, 35)]]), alReves, "d1");
+  const b = pasada(a.registro, new Map([["X", velas]]), alReves, "d2");
+  const c = pasada(b.registro, new Map([["X", velas]]), alReves, "d3").registro.cerradas[0]!;
+  assert.equal(c.entradaReal, 105, "vender mas arriba es mejor");
+  assert.equal(c.r, 3.5, "(105 - 70) / 10");
+});
