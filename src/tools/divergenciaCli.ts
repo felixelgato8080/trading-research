@@ -153,7 +153,7 @@ async function main(): Promise<void> {
         const res = simular(p.men, x, (x.entrada * costeBps) / 10_000, maxVelas);
         if (!res) continue;
         const riesgo = Math.abs(x.entrada - x.stop);
-        const o = { r: res.r, pips: (res.r * riesgo) / pip(p.s) };
+        const o = { r: res.r, pips: pip(p.s) != null ? (res.r * riesgo) / pip(p.s)! : 0 };
         ops.push(o);
         propias.push(res.r);
         sumaRR += x.rr;

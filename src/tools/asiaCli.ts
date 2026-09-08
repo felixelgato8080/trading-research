@@ -18,7 +18,14 @@
  *   3. AMPLITUD: cuantos pares aportan, y si aguanta sin el mejor.
  */
 import { readFileSync } from "node:fs";
-import { velas, pip, type Vela, type Temporalidad } from "../forex/datos";
+import { velas, pip as pipCrudo, type Vela, type Temporalidad } from "../forex/datos";
+
+/** Esta herramienta es solo de divisas: un par sin pip aqui es un error de uso, no un caso. */
+function pipForex(par: string): number {
+  const p = pipCrudo(par);
+  if (p == null) throw new Error(`${par} no es un par de divisas y esta herramienta solo mide forex`);
+  return p;
+}
 import { rsi, señales, filtrarPorSesion, type ReglasRsi } from "../forex/rsi";
 import { simular, type ReglasSalidaFx } from "../forex/backtest";
 
@@ -57,7 +64,7 @@ function evaluar(
     const valores = rsi(cierres, reglas.periodo);
     let ss = señales(cierres, reglas);
     ss = filtrarPorSesion(ss, usadas.map((x) => x.t), desde, hasta);
-    const ops = simular(usadas, ss, salida, { spreadPips }, pip(par), valores);
+    const ops = simular(usadas, ss, salida, { spreadPips }, pipForex(par), valores);
     const rs = ops.map((o) => o.r);
     porPar.set(par, rs);
     for (const o of ops) {

@@ -148,12 +148,12 @@ async function main(): Promise<void> {
     const porPar = new Map<string, number[]>();
     for (const [par, v] of datos) {
       const a = atr(v, 14);
-      const pipTam = pip(par);
+      const pipTam = (pip(par) ?? 0.0001);
       const rs: number[] = [];
       for (const s of va.señales(v, a)) {
         const av = a[s.i];
         if (av == null || !(av > 0)) continue;
-        const r = simularRuptura(v, s, av * va.atrStop, va.trailing, spreadPips * pipTam, va.maxVelas);
+        const r = simularRuptura(v, s, av * va.atrStop, va.trailing, spreadPips * pipTam!, va.maxVelas);
         if (r) rs.push(r.r);
       }
       porPar.set(par, rs);

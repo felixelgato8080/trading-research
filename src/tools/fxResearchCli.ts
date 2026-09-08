@@ -96,7 +96,7 @@ async function main(): Promise<void> {
         });
       }
 
-      const ops = simular(velasPar, ss, v.salida, { spreadPips }, pip(par), valoresRsi, valoresAtr);
+      const ops = simular(velasPar, ss, v.salida, { spreadPips }, (pip(par) ?? 0.0001), valoresRsi, valoresAtr);
       porPar.set(par, ops.map((o) => o.r));
     }
 

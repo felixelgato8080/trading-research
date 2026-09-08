@@ -135,14 +135,14 @@ async function main(): Promise<void> {
   for (const [nombre, comp] of variantes) {
     const porPar = new Map<string, Op[]>();
     for (const [par, d] of datos) {
-      const pipTam = pip(par);
+      const pipTam = (pip(par) ?? 0.0001);
       const ops: Op[] = [];
       for (const s of detectar(d.m5, d.h1, comp, PARAMETROS)) {
         if (s.puntos < minPuntos) continue;
         const i0 = s.i + 1;
         if (i0 >= d.m5.length) continue;
         const r = simular(
-          d.m5, i0, s.direccion === "LARGO", s.atr * atrStop, objetivoR, spreadPips * pipTam, maxVelas,
+          d.m5, i0, s.direccion === "LARGO", s.atr * atrStop, objetivoR, spreadPips * pipTam!, maxVelas,
         );
         ops.push({ r, par, hora: s.hora, direccion: s.direccion });
       }

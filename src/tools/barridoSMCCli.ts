@@ -119,16 +119,18 @@ async function main(): Promise<void> {
     const ops: Op[] = [];
     for (const [s, v] of datos) {
       const a = atrs.get(s)!;
+      // null fuera de divisas: en cripto un "pip" no significa nada y antes se imprimian
+      // columnas con decenas de miles al lado de unos R que si eran correctos.
       const unidad = pip(s);
       for (const x of señales(v, a, aj)) {
         const coste = (x.entrada * costeBps) / 10_000;
         const riesgo = Math.abs(x.entrada - x.stop);
         if (parcial === null) {
           const r = simular(v, x, coste, maxVelas);
-          if (r) ops.push({ r: r.r, pips: (r.r * riesgo) / unidad });
+          if (r) ops.push({ r: r.r, pips: unidad != null ? (r.r * riesgo) / unidad : 0 });
         } else {
           const r = simularParcial(v, x, coste, maxVelas, parcial, 1, aj.objetivoR);
-          if (r) ops.push({ r: r.r, pips: r.precio / unidad });
+          if (r) ops.push({ r: r.r, pips: unidad != null ? r.precio / unidad : 0 });
         }
       }
     }

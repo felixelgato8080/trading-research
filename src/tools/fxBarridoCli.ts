@@ -13,7 +13,14 @@
  * Cada variante se juzga tambien QUITANDOLE SU MEJOR PAR, igual que en memecoins: una
  * configuracion que solo gana con un par no es una estrategia, es un acierto con ese par.
  */
-import { velas, pip, type Vela } from "../forex/datos";
+import { velas, pip as pipCrudo, type Vela } from "../forex/datos";
+
+/** Esta herramienta es solo de divisas: un par sin pip aqui es un error de uso, no un caso. */
+function pipForex(par: string): number {
+  const p = pipCrudo(par);
+  if (p == null) throw new Error(`${par} no es un par de divisas y esta herramienta solo mide forex`);
+  return p;
+}
 import { rsi, señales, filtrarPorSesion, type ReglasRsi } from "../forex/rsi";
 import { simular, resumir, type ReglasSalidaFx } from "../forex/backtest";
 
@@ -98,7 +105,7 @@ async function main(): Promise<void> {
       const valoresRsi = rsi(cierres, v.rsi.periodo);
       let ss = señales(cierres, v.rsi);
       if (v.sesion) ss = filtrarPorSesion(ss, velasPar.map((x) => x.t), v.sesion[0], v.sesion[1]);
-      const ops = simular(velasPar, ss, v.salida, { spreadPips }, pip(par), valoresRsi);
+      const ops = simular(velasPar, ss, v.salida, { spreadPips }, pipForex(par), valoresRsi);
       porPar.set(par, ops.map((o) => o.r));
       if (ops.length) velasMed = resumir(ops).velasMedianas;
     }

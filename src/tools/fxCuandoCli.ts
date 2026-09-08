@@ -134,7 +134,7 @@ async function main(): Promise<void> {
     const valoresAtr = atr(v, 14);
     const e200 = ema(cierres, 200);
     const pipTam = pip(par);
-    const stop = stopPips * pipTam;
+    const stop = stopPips * pipTam!;
 
     for (const s of señales(cierres, reglas)) {
       const i0 = s.i + 1;
@@ -144,7 +144,7 @@ async function main(): Promise<void> {
       const eAnt = e200[Math.max(0, s.i - 20)];
       if (a == null || !(a > 0) || e == null || eAnt == null) continue;
 
-      const r = simularTrailing(v, i0, s.direccion === "LARGO", stop, 2, spreadPips * pipTam, maxVelas);
+      const r = simularTrailing(v, i0, s.direccion === "LARGO", stop, 2, spreadPips * pipTam!, maxVelas);
       casos.push({
         par,
         año: new Date(v[s.i]!.t * 1000).getUTCFullYear(),

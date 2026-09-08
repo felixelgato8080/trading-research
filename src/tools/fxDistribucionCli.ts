@@ -185,7 +185,7 @@ async function main(): Promise<void> {
       const av = atrMult ? atr(v, 14) : undefined;
       porPar.set(
         par,
-        simularSinTecho(v, ss, sp || stopPips, trailing, spreadPips, pip(par), av, atrMult),
+        simularSinTecho(v, ss, sp || stopPips, trailing, spreadPips, (pip(par) ?? 0.0001), av, atrMult),
       );
     }
     const todas = [...porPar.values()].flat();

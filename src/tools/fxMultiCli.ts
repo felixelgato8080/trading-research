@@ -57,7 +57,7 @@ async function main(): Promise<void> {
     const porPar = new Map<string, number[]>();
     for (const [par, d] of datos) {
       const ss = señalesMulti(d.m5, d.m15, d.h1, reglas);
-      const ops = simular(d.m5, ss, { objetivoR: 1, stopPips, maxVelas: 0 }, { spreadPips }, pip(par));
+      const ops = simular(d.m5, ss, { objetivoR: 1, stopPips, maxVelas: 0 }, { spreadPips }, (pip(par) ?? 0.0001));
       porPar.set(par, ops.map((o) => o.r));
     }
     const todas = [...porPar.values()].flat();

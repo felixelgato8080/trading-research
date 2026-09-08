@@ -109,6 +109,16 @@ export async function velas(par: string, tf: Temporalidad): Promise<Vela[]> {
  * Importa para los costes: el spread se cotiza en pips y si se aplica el tamaño equivocado el
  * coste sale 100 veces mayor o menor de lo que es.
  */
-export function pip(par: string): number {
-  return par.toUpperCase().includes("JPY") ? 0.01 : 0.0001;
+export function pip(par: string): number | null {
+  const s = par.toUpperCase();
+  // EL PIP ES UNA UNIDAD DE DIVISAS Y NO SIGNIFICA NADA FUERA DE AHI.
+  //
+  // Devolvia 0,0001 para cualquier simbolo, incluidos los de cripto, y eso imprimia columnas de
+  // "pips" con valores absurdos —decenas de miles— al lado de unos R que si eran correctos. Un
+  // numero sin sentido junto a uno bueno es peor que no imprimir nada: invita a leerlo.
+  //
+  // Ahora devuelve null y quien llama decide si la columna tiene sentido o se calla.
+  if (!/^[A-Z]{6}(=X)?$/.test(s.replace("=X", "") + "=X")) return null;
+  if (s.includes("USDT") || s.includes("BUSD") || s.includes("USDC")) return null;
+  return s.includes("JPY") ? 0.01 : 0.0001;
 }

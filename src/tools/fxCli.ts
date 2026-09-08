@@ -8,7 +8,14 @@
  * El resultado va en R (multiplos del riesgo) y no en dinero, porque el dinero depende del
  * apalancamiento —que es una decision aparte— y no dice nada sobre si la estrategia sirve.
  */
-import { velas, pip, type Temporalidad, type Vela } from "../forex/datos";
+import { velas, pip as pipCrudo, type Temporalidad, type Vela } from "../forex/datos";
+
+/** Esta herramienta es solo de divisas: un par sin pip aqui es un error de uso, no un caso. */
+function pipForex(par: string): number {
+  const p = pipCrudo(par);
+  if (p == null) throw new Error(`${par} no es un par de divisas y esta herramienta solo mide forex`);
+  return p;
+}
 import { señales, REGLAS_RSI, type ReglasRsi } from "../forex/rsi";
 import { simular, resumir, type ReglasSalidaFx } from "../forex/backtest";
 
@@ -85,7 +92,7 @@ async function main(): Promise<void> {
     const porPar = new Map<string, number[]>();
     for (const [par, v] of datos) {
       const ss = señales(v.map((x) => x.c), reglasRsi);
-      const ops = simular(v, ss, reglasSalida, { spreadPips }, pip(par));
+      const ops = simular(v, ss, reglasSalida, { spreadPips }, pipForex(par));
       porPar.set(par, ops.map((o) => o.r));
     }
 
