@@ -21,7 +21,8 @@
     "grabar:smc": "tsx src/tools/grabarSMCCli.ts",
     "grabar:divergencia": "tsx src/tools/grabarDivergenciaCli.ts",
     "bot": "tsx src/tools/botCli.ts",
-    "grabar:cripto": "tsx src/tools/grabarCriptoCli.ts"
+    "grabar:cripto": "tsx src/tools/grabarCriptoCli.ts",
+    "contraste": "tsx src/tools/contrasteCli.ts"
   },
   "dependencies": {
     "axios": "^1.7.9"
