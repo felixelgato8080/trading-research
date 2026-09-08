@@ -46,6 +46,16 @@ export interface OperacionAuditable {
    * opcional invita a olvidarlo justo donde importa.
    */
   adversa: boolean;
+  /**
+   * El riesgo con el que se dimensiono, cuando no es simplemente |entrada - stop|.
+   *
+   * Hace falta porque hay dos convenciones y las dos son defendibles: medir la R contra el
+   * riesgo PLANEADO —el que se conocia al mandar la orden, y sobre el que se calculo el tamaño—
+   * o contra el que resulta del llenado real. Deducirlo siempre de los precios daba 25 falsas
+   * alarmas sobre un backtest correcto, porque un llenado con hueco mejora la entrada y encoge
+   * la distancia al stop DESPUES de haber dimensionado la posicion.
+   */
+  riesgo?: number;
   /** Resultado declarado en multiplos del riesgo, ya con costes. */
   r: number;
   /** Resultado sin costes, si el grabador lo guarda. Es el que tiene que cuadrar exacto. */
@@ -101,7 +111,7 @@ export function auditarUna(op: OperacionAuditable, velas: Vela[]): Anomalia[] {
     out.push({ par: op.par, tEntrada: op.tEntrada, regla, detalle });
   };
   const largo = op.direccion === "LARGO";
-  const riesgo = Math.abs(op.entrada - op.stop);
+  const riesgo = op.riesgo ?? Math.abs(op.entrada - op.stop);
 
   // ---- 1. Lo que se comprueba sin mirar el mercado -----------------------------------------
   if (op.tSalida !== undefined && op.tSalida <= op.tEntrada) {
@@ -137,12 +147,14 @@ export function auditarUna(op: OperacionAuditable, velas: Vela[]): Anomalia[] {
         `declara ${op.r.toFixed(6)}R neto sobre ${bruto.toFixed(6)}R bruto: el coste suma en vez de restar`,
       );
     }
-    // Y tampoco puede empeorar sin limite: un coste de mas de 1R en una operacion no es un coste,
-    // es un error de contabilidad.
+    // Y un coste de mas de 1R merece mirarse. Casi siempre es un error de contabilidad, pero no
+    // siempre: con un stop mas estrecho que el propio spread, el peaje SE COME el riesgo entero
+    // y la operacion es real aunque no sea jugable. Medido en divergencias de 5m, pasa en 3 de
+    // 776. Se avisa igual, porque una operacion asi no la manda nadie y conviene verla.
     if (op.r < bruto - 1) {
       anota(
         "R_NO_CUADRA",
-        `declara ${op.r.toFixed(6)}R sobre ${bruto.toFixed(6)}R bruto: el coste no puede ser de 1R`,
+        `declara ${op.r.toFixed(6)}R sobre ${bruto.toFixed(6)}R bruto: el coste se lleva mas de 1R`,
       );
     }
   }

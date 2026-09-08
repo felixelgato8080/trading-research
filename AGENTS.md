@@ -159,7 +159,18 @@ No hace falta redescubrirlas, y sobre todo no hay que reintroducirlas.
     en `rupturas.ts` y siguió vivo meses en los tres grabadores, que son código aparte. Cuando
     corrijas una trampa, busca la misma línea en `grabador.ts`, `grabadorCripto.ts` y `botCli.ts`.
 
-11. **Entrar al cierre de la vela de la señal es mirar el futuro.** Ese precio ya pasó cuando lo
+11. **El hueco también existe en la ENTRADA.** Una orden limitada nunca se llena peor que su
+    precio: si la vela abre pasada del nivel, te llenan en la apertura. Cobrarse el nivel pedido
+    daba entradas fuera del rango de su propia vela (21 de 790). Y si el hueco se pasó también
+    del stop, la operación **no existe**: quedarías largo con el stop por encima de tu llenado.
+    Contarlas costaba caro — 14 de 790, varias declarando más de 25R inventados.
+
+12. **El lado del llenado lo fija el VIAJE del precio, no la dirección de la operación.** Misma
+    trampa que el extremo de la vela de entrada (trampa 1). Si se deduce de `largo`, una señal
+    volteada para usarla de control se llena a otro precio que la original y el control deja de
+    comparar las mismas barras.
+
+13. **Entrar al cierre de la vela de la señal es mirar el futuro.** Ese precio ya pasó cuando lo
     ves. El bot en papel lo hacía, y por eso su registro hacia adelante habría salido MEJOR que
     el backtest que debía validarlo — la peor forma de fallar, porque parece una buena noticia.
     Se entra en la apertura de la vela siguiente, igual que el backtest.
@@ -173,7 +184,9 @@ opina sobre si la estrategia es buena; pregunta si el precio de salida existió 
 la entrada era alcanzable, si la salida fue posterior a la entrada y si la R declarada cuadra con
 los precios.
 
-Suena tonto y habría cazado tres de las once trampas de arriba. Corre en los tres grabadores
+Suena tonto y habría cazado cinco de las trece trampas de arriba. De hecho las cazó: pasarle
+las 790 operaciones del backtest de divergencias devolvió **107 anomalías** —precios que ninguna
+vela llegó a tocar— en un simulador que llevaba meses dando por buenos sus números. Corre en los tres grabadores
 (`grabar:smc`, `grabar:divergencia`, `grabar:cripto`) y en el bot, cuesta milisegundos, y si algo
 falla el proceso sale con código 1 y el cron se pone rojo.
 

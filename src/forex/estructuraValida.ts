@@ -230,6 +230,16 @@ export interface ResultadoZona {
   velas: number;
   motivo: "OBJETIVO" | "STOP" | "TIEMPO";
   rr: number;
+  /**
+   * Los precios a los que se lleno de verdad, que no siempre son los pedidos.
+   *
+   * Se devuelven para que la operacion se pueda AUDITAR sin reconstruirla por fuera. Cuando
+   * hubo que reconstruirlos a mano para pasarles las invariantes, aparecieron 107 anomalias en
+   * 790 operaciones: precios que ninguna vela llego a tocar. Un simulador que no dice a que
+   * precio lleno no se puede comprobar.
+   */
+  entradaReal: number;
+  salida: number;
 }
 
 /**
@@ -273,6 +283,39 @@ export function simular(
   if (!(riesgo > 0)) return null;
   const extremo: ExtremoEntrada = extremoEntrada ?? (largo ? "MINIMO" : "MAXIMO");
 
+  const v0 = velas[s.i];
+  if (!v0) return null;
+
+  // EL HUECO EN LA ENTRADA. La orden esta posada en `s.entrada`. Si la vela ABRE ya pasada de
+  // ese nivel, no te llenan ahi: te llenan en la apertura, MEJOR, porque una limitada nunca da
+  // un precio peor que el suyo. Cobrarse el nivel pedido inventaba un precio que la vela nunca
+  // toco: 21 de 790 operaciones tenian la entrada fuera del rango de su propia vela.
+  //
+  // Y EL LADO LO FIJA EL VIAJE DEL PRECIO, NO LA DIRECCION DE LA OPERACION. Es exactamente la
+  // misma trampa que con el extremo de la vela de entrada: si se dedujera de `largo`, una señal
+  // volteada para usarla de control se llenaria a OTRO precio que la original, y entonces el
+  // control ya no compara las mismas barras. Con "NINGUNO" se entro al cierre y no hay hueco
+  // que aplicar.
+  const entradaReal =
+    extremo === "MINIMO" ? Math.min(s.entrada, v0.o)
+    : extremo === "MAXIMO" ? Math.max(s.entrada, v0.o)
+    : s.entrada;
+
+  // PERO SI EL HUECO SE PASO TAMBIEN DEL STOP, la operacion no existe. Quedarias largo con el
+  // stop POR ENCIMA de tu propio llenado, que no es una operacion sino un sinsentido: cuando la
+  // orden se lleno, el nivel del stop ya estaba roto.
+  //
+  // Se descarta en vez de contarla como perdida porque nadie mandaria esa orden: al abrir el
+  // mercado ahi, el planteamiento entero se cae. Y contarla era CARO — 14 de 790 operaciones,
+  // varias de ellas declarando mas de 25R de beneficio inventado, que se comian la media.
+  if (largo ? entradaReal <= s.stop : entradaReal >= s.stop) return null;
+
+  // EL RIESGO SIGUE SIENDO EL PLANEADO, no el que resulta del llenado. Es sobre el planeado
+  // sobre el que se dimensiona la posicion, porque es el unico que se conoce al mandar la orden.
+  // Recalcularlo con el llenado real cambiaria el denominador de la R a posteriori.
+  const neto = (salida: number): number =>
+    ((largo ? salida - entradaReal : entradaReal - salida) - coste) / riesgo;
+
   for (let j = s.i; j < velas.length; j += 1) {
     const v = velas[j]!;
     const primera = j === s.i;
@@ -280,17 +323,27 @@ export function simular(
     const usaMin = !primera || extremo === "MINIMO";
     const usaMax = !primera || extremo === "MAXIMO";
 
+    // Y EN LAS SALIDAS, lo mismo pero al reves de bueno: si la vela abre pasada del nivel, la
+    // orden salta en la apertura. En el stop eso duele mas que el nivel, y en el objetivo paga
+    // mas. En la vela de ENTRADA no aplica: su apertura ocurrio ANTES de entrar nosotros.
+    const conHueco = (nivel: number, peor: boolean): number => {
+      if (primera) return nivel;
+      const pasada = largo === peor ? v.o < nivel : v.o > nivel;
+      return pasada ? v.o : nivel;
+    };
+
     const tocaStop = largo ? usaMin && v.l <= s.stop : usaMax && v.h >= s.stop;
     if (tocaStop) {
-      return { r: -1 - coste / riesgo, velas: j - s.i, motivo: "STOP", rr: s.rr };
+      const salida = conHueco(s.stop, true);
+      return { r: neto(salida), velas: j - s.i, motivo: "STOP", rr: s.rr, entradaReal, salida };
     }
     const tocaObj = largo ? usaMax && v.h >= s.objetivo : usaMin && v.l <= s.objetivo;
     if (tocaObj) {
-      return { r: s.rr - coste / riesgo, velas: j - s.i, motivo: "OBJETIVO", rr: s.rr };
+      const salida = conHueco(s.objetivo, false);
+      return { r: neto(salida), velas: j - s.i, motivo: "OBJETIVO", rr: s.rr, entradaReal, salida };
     }
     if (maxVelas > 0 && j - s.i >= maxVelas) {
-      const bruto = largo ? v.c - s.entrada : s.entrada - v.c;
-      return { r: (bruto - coste) / riesgo, velas: j - s.i, motivo: "TIEMPO", rr: s.rr };
+      return { r: neto(v.c), velas: j - s.i, motivo: "TIEMPO", rr: s.rr, entradaReal, salida: v.c };
     }
   }
   return null;

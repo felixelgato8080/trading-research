@@ -250,5 +250,100 @@ test("VOLTEAR LA SEÑAL no la mata con un extremo que ya habia pasado", () => {
   const s = { i: 0, direccion: "CORTO" as const, entrada: 112, stop: 119, objetivo: 105, rr: 1 };
   const r = simular(velas, s, 0, 0, "MINIMO")!;
   assert.equal(r.motivo, "OBJETIVO", "el minimo 100 es posterior al llenado, y vale");
-  assert.equal(simular(velas, s, 0, 0)!.motivo, "STOP", "deducido del lado, saltaria por el 143");
+  // Y si el extremo se dedujera del LADO en vez del viaje, ahora ni siquiera sale una operacion
+  // mala: sale ninguna. El llenado se calcularia sobre la apertura de 142, que queda por encima
+  // del stop de 119, y el planteamiento se cae entero. La deduccion equivocada era grave cuando
+  // devolvia un STOP falso y es igual de grave ahora que se traga la operacion.
+  assert.equal(simular(velas, s, 0, 0), null, "deducido del lado, la operacion desaparece");
+});
+
+// ---------------------------------------------------------------------------------------
+// LOS HUECOS. La invariante los encontro aqui despues de haberlos arreglado en otros cuatro
+// simuladores: 107 anomalias en 790 operaciones del backtest de divergencias.
+// ---------------------------------------------------------------------------------------
+
+/** Largo a 100, stop 90, objetivo 120. La vela 0 es la de entrada. */
+const OP = {
+  i: 0, direccion: "LARGO" as const, entrada: 100, stop: 90, objetivo: 120, rr: 2,
+};
+
+test("SIN HUECOS el resultado es el de siempre: el stop cuesta exactamente 1R", () => {
+  const r = simular([v(0, 105, 106, 99, 100), v(1, 100, 101, 88, 89)], OP, 0, 0)!;
+  assert.equal(r.motivo, "STOP");
+  assert.equal(r.r, -1);
+  assert.equal(r.entradaReal, 100);
+  assert.equal(r.salida, 90);
+});
+
+test("SI LA VELA ABRE PASADA DEL STOP, se cobra la apertura y duele mas de 1R", () => {
+  // Abre en 80 con el stop en 90: a 90 no vende nadie.
+  const r = simular([v(0, 105, 106, 99, 100), v(1, 80, 81, 78, 79)], OP, 0, 0)!;
+  assert.equal(r.salida, 80);
+  assert.equal(r.r, -2, "(80 - 100) / 10");
+});
+
+test("SI LA VELA ABRE PASADA DEL OBJETIVO, se cobra la apertura y paga MAS", () => {
+  // Una limitada de venta en 120 con el mercado abriendo en 130 se ejecuta en 130.
+  const r = simular([v(0, 105, 106, 99, 100), v(1, 130, 140, 128, 138)], OP, 0, 0)!;
+  assert.equal(r.motivo, "OBJETIVO");
+  assert.equal(r.salida, 130);
+  assert.equal(r.r, 3, "(130 - 100) / 10, no el 2 pedido");
+});
+
+test("EN LA VELA DE ENTRADA EL HUECO NO CUENTA: su apertura ocurrio ANTES de entrar", () => {
+  // La vela abre en 105, cae a 88 y cierra en 100. Se entra en 100 y el stop de 90 se toca
+  // dentro de esa misma vela. Se cobra el NIVEL, no la apertura: cuando la orden se lleno, esa
+  // apertura ya era pasado, y usarla seria inventar un llenado anterior a la propia entrada.
+  const r = simular([v(0, 105, 106, 88, 100)], OP, 0, 0)!;
+  assert.equal(r.entradaReal, 100);
+  assert.equal(r.motivo, "STOP");
+  assert.equal(r.salida, 90);
+});
+
+test("SI EL HUECO SE PASA TAMBIEN DEL STOP, la operacion NO EXISTE", () => {
+  // Compra limitada en 100 con stop en 90, y la vela abre en 85. Quedarias largo con el stop
+  // POR ENCIMA de tu llenado: no es una operacion, es un sinsentido. Contarlas era caro -14 de
+  // 790, varias declarando mas de 25R inventados- porque se comian la media.
+  assert.equal(simular([v(0, 85, 101, 84, 100)], OP, 0, 0), null);
+});
+
+test("EL LLENADO LO FIJA EL VIAJE DEL PRECIO, no el lado de la operacion", () => {
+  // Si se dedujera de `largo`, la señal volteada que se usa de control se llenaria a otro
+  // precio que la original y el control dejaria de comparar las mismas barras.
+  const velas = [v(0, 95, 130, 94, 120), v(1, 120, 121, 119, 120)];
+  const comoLargo = simular(velas, OP, 0, 0, "MINIMO")!;
+  const comoCorto = simular(
+    velas, { ...OP, direccion: "CORTO", stop: 110, objetivo: 80 }, 0, 0, "MINIMO",
+  )!;
+  assert.equal(comoLargo.entradaReal, 95);
+  assert.equal(comoCorto.entradaReal, 95, "el volteado se llena donde el original");
+});
+
+test("UNA LIMITADA NO SE LLENA PEOR QUE SU PRECIO: si la vela abre pasada, llena MEJOR", () => {
+  // Compra limitada en 100 y la vela abre en 95: te llenan en 95, no en 100. Antes se cobraba
+  // el nivel pedido, y eso daba entradas fuera del rango de su propia vela.
+  const r = simular([v(0, 95, 96, 94, 95), v(1, 95, 125, 94, 120)], OP, 0, 0)!;
+  assert.equal(r.entradaReal, 95);
+  assert.equal(r.motivo, "OBJETIVO");
+  assert.equal(r.r, 2.5, "(120 - 95) / 10: el riesgo sigue siendo el PLANEADO");
+});
+
+test("el riesgo del denominador es el PLANEADO, no el que sale del llenado", () => {
+  // Se dimensiona la posicion con el riesgo que se conoce al mandar la orden. Recalcularlo con
+  // el llenado real cambiaria el denominador de la R despues de los hechos.
+  const r = simular([v(0, 95, 96, 94, 95), v(1, 95, 96, 88, 89)], OP, 0, 0)!;
+  assert.equal(r.entradaReal, 95);
+  assert.equal(r.r, -0.5, "(90 - 95) / 10, no (90 - 95) / 5");
+});
+
+test("EN CORTO todo es simetrico", () => {
+  const corto = { i: 0, direccion: "CORTO" as const, entrada: 100, stop: 110, objetivo: 80, rr: 2 };
+  // Stop con hueco: abre en 120 con el stop en 110.
+  const a = simular([v(0, 95, 101, 94, 100), v(1, 120, 125, 118, 124)], corto, 0, 0)!;
+  assert.equal(a.salida, 120);
+  assert.equal(a.r, -2);
+  // Objetivo con hueco: abre en 70 con el objetivo en 80.
+  const b = simular([v(0, 95, 101, 94, 100), v(1, 70, 72, 60, 65)], corto, 0, 0)!;
+  assert.equal(b.salida, 70);
+  assert.equal(b.r, 3);
 });
