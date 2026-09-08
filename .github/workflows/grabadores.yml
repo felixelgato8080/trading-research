@@ -64,15 +64,31 @@ jobs:
         run: node --import tsx --test test/*.test.ts
 
       - name: Una pasada de los grabadores
+        # SIN `|| true`. La primera version lo llevaba para que un par que falla al descargar no
+        # tirase el commit de lo que si se habia grabado, y de paso se trago que no se ejecutara
+        # NADA: el paso duro 0 segundos y el workflow salio en verde. Un Success sin grabar es
+        # peor que un fallo, porque nadie mira un registro vacio hasta dentro de un mes.
         run: |
+          set -x
           mkdir -p registros
           npx tsx src/tools/servicioCli.ts --unavez \
             --smc=registros/registro-smc.json \
             --divvideo=registros/div-video.json \
-            --div4h1h=registros/div-4h1h.json || true
+            --div4h1h=registros/div-4h1h.json
+          echo "--- ficheros escritos ---"
+          ls -la registros/
 
-      # `|| true` arriba y este paso aparte: que falle la descarga de un par no debe tirar el
-      # commit de lo que si se grabo.
+      - name: Comprobar que de verdad se grabo algo
+        # El paso anterior podria terminar bien sin haber escrito nada. Esto lo hace imposible.
+        run: |
+          for f in registros/registro-smc.json registros/div-video.json registros/div-4h1h.json; do
+            if [ ! -s "$f" ]; then
+              echo "::error::$f no existe o esta vacio: el grabador no escribio."
+              exit 1
+            fi
+          done
+          echo "Los tres registros existen y no estan vacios."
+
       - name: Guardar el estado
         run: |
           git config user.name "grabadores"
