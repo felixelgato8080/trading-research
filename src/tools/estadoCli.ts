@@ -197,11 +197,23 @@ async function bot(ruta: string | undefined): Promise<void> {
       ? null
       : (p.direccion === "LARGO" ? ahora - p.entrada : p.entrada - ahora) / p.riesgo;
     expuesto += (ahora ?? p.entrada) * p.unidades;
+    // SI EL PRECIO YA ESTA PASADO DEL STOP, la operacion esta resuelta aunque figure abierta:
+    // el bot solo actua sobre velas diarias CERRADAS, asi que la apuntara en el proximo cierre.
+    // Y la apuntara al precio del hueco, no al del momento, asi que el flotante de arriba no es
+    // lo que va a salir. Decirlo evita leer una perdida peor —o mejor— de la que sera.
+    const roto = ahora != null &&
+      (p.direccion === "LARGO" ? ahora < p.nivelStop : ahora > p.nivelStop);
     console.log(
-      `  ABIERTA   ${p.simbolo.padEnd(11)}${p.direccion.padEnd(6)}${cifra(p.entrada)}` +
+      `  ${roto ? "CERRANDO " : "ABIERTA  "} ${p.simbolo.padEnd(11)}${p.direccion.padEnd(6)}${cifra(p.entrada)}` +
         `${ahora == null ? "" : ` -> ${cifra(ahora)}`}` +
         `${r == null ? "" : `  ${conSigno(r).padStart(8)}`}  stop ${cifra(p.nivelStop)}`,
     );
+    if (roto) {
+      console.log(
+        `            el precio ya paso del stop: se apuntara en el proximo cierre diario, ` +
+          "al precio del hueco",
+      );
+    }
   }
   if (g.estado.posiciones.length > 0) {
     console.log(
