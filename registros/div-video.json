@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-08T01:08:52.791Z",
-  "ultima": "2026-09-11T19:01:58.757Z",
-  "pasadas": 209,
+  "ultima": "2026-09-11T19:16:59.154Z",
+  "pasadas": 210,
   "ajustes": {
     "modo": "video",
     "div": {
@@ -38,7 +38,20 @@
   },
   "costeBps": 0.6,
   "vigencia": 60,
-  "pendientes": [],
+  "pendientes": [
+    {
+      "par": "USDCHF=X",
+      "direccion": "CORTO",
+      "entrada": 0.8168699741363525,
+      "stop": 0.8170570313930512,
+      "objetivo": 0.8137099742889404,
+      "rr": 16.893222445268908,
+      "apuntada": "2026-09-11T19:16:59.154Z",
+      "tSeñal": 1789153500,
+      "caducaEn": 1789171500,
+      "velasDeRetraso": 2
+    }
+  ],
   "abiertas": [
     {
       "par": "NZDUSD=X",
@@ -822,18 +835,18 @@
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1789153200,
-    "GBPUSD=X": 1789153200,
-    "USDJPY=X": 1789153200,
-    "USDCHF=X": 1789153200,
-    "AUDUSD=X": 1789152900,
-    "USDCAD=X": 1789153200,
-    "NZDUSD=X": 1789152900,
-    "EURJPY=X": 1789153200,
-    "EURGBP=X": 1789153200,
-    "GBPJPY=X": 1789153200,
-    "AUDJPY=X": 1789153200,
-    "CADJPY=X": 1789153200
+    "EURUSD=X": 1789154100,
+    "GBPUSD=X": 1789154100,
+    "USDJPY=X": 1789154100,
+    "USDCHF=X": 1789154100,
+    "AUDUSD=X": 1789153800,
+    "USDCAD=X": 1789154100,
+    "NZDUSD=X": 1789153800,
+    "EURJPY=X": 1789154100,
+    "EURGBP=X": 1789154100,
+    "GBPJPY=X": 1789154100,
+    "AUDJPY=X": 1789154100,
+    "CADJPY=X": 1789154100
   },
   "discrepancias": []
 }
