@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-08T01:08:52.791Z",
-  "ultima": "2026-09-11T02:16:58.451Z",
-  "pasadas": 175,
+  "ultima": "2026-09-11T02:31:58.639Z",
+  "pasadas": 176,
   "ajustes": {
     "modo": "video",
     "div": {
@@ -69,19 +69,19 @@
       "entradaReal": 207.6009979248047
     },
     {
-      "par": "GBPUSD=X",
-      "direccion": "LARGO",
-      "entrada": 1.3508219718933105,
-      "stop": 1.3504608392715454,
-      "objetivo": 1.3539679050445557,
-      "rr": 8.711295966196856,
-      "apuntada": "2026-09-10T21:46:57.627Z",
-      "tSeñal": 1789076100,
-      "caducaEn": 1789094100,
+      "par": "USDJPY=X",
+      "direccion": "CORTO",
+      "entrada": 154.49200439453125,
+      "stop": 154.61849365234374,
+      "objetivo": 153.84100341796875,
+      "rr": 5.146689828218722,
+      "apuntada": "2026-09-11T02:31:58.639Z",
+      "tSeñal": 1789093200,
+      "caducaEn": 1789111200,
       "velasDeRetraso": 2,
-      "abierta": "2026-09-10T22:01:57.843Z",
-      "tEntrada": 1789077300,
-      "entradaReal": 1.3508219718933105
+      "abierta": "2026-09-11T02:31:58.639Z",
+      "tEntrada": 1789093800,
+      "entradaReal": 154.49200439453125
     }
   ],
   "cerradas": [
@@ -707,21 +707,41 @@
       "salida": 0.7162297964096069,
       "r": -1.7438155632991759,
       "motivo": "STOP"
+    },
+    {
+      "par": "GBPUSD=X",
+      "direccion": "LARGO",
+      "entrada": 1.3508219718933105,
+      "stop": 1.3504608392715454,
+      "objetivo": 1.3539679050445557,
+      "rr": 8.711295966196856,
+      "apuntada": "2026-09-10T21:46:57.627Z",
+      "tSeñal": 1789076100,
+      "caducaEn": 1789094100,
+      "velasDeRetraso": 2,
+      "abierta": "2026-09-10T22:01:57.843Z",
+      "tEntrada": 1789077300,
+      "entradaReal": 1.3508219718933105,
+      "cerrada": "2026-09-11T02:31:58.639Z",
+      "tSalida": 1789093500,
+      "salida": 1.3503841161727905,
+      "r": -1.4368822076977172,
+      "motivo": "STOP"
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1789092900,
-    "GBPUSD=X": 1789092900,
-    "USDJPY=X": 1789092900,
-    "USDCHF=X": 1789092900,
-    "AUDUSD=X": 1789092600,
-    "USDCAD=X": 1789092900,
-    "NZDUSD=X": 1789092600,
-    "EURJPY=X": 1789092900,
-    "EURGBP=X": 1789092900,
-    "GBPJPY=X": 1789092900,
-    "AUDJPY=X": 1789092900,
-    "CADJPY=X": 1789092900
+    "EURUSD=X": 1789093800,
+    "GBPUSD=X": 1789093800,
+    "USDJPY=X": 1789093800,
+    "USDCHF=X": 1789093800,
+    "AUDUSD=X": 1789093500,
+    "USDCAD=X": 1789093800,
+    "NZDUSD=X": 1789093500,
+    "EURJPY=X": 1789093800,
+    "EURGBP=X": 1789093800,
+    "GBPJPY=X": 1789093800,
+    "AUDJPY=X": 1789093800,
+    "CADJPY=X": 1789093800
   },
   "discrepancias": []
 }
