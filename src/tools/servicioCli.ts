@@ -4,6 +4,7 @@
  *   npm run servicio -- [--unavez] [--cada=3600] [--estado=/data/bot.json] [--lista=/data/monedas.json]
  *                       [--smc=/data/registro-smc.json]
  *                       [--divvideo=/data/div-video.json] [--div4h1h=/data/div-4h1h.json]
+ *                       [--divafinado=/data/div-afinado.json]
  *
  * POR QUE UN BUCLE Y NO UN CRON
  * -----------------------------
@@ -115,7 +116,12 @@ async function main(): Promise<void> {
   // estrategia y el histórico dice que pierde: se graba para ver si el backtest miente. `4h1h`
   // es la unica variante con borde medido. Mezclarlos en un registro lo invalidaria, y por eso
   // el modo va dentro de los ajustes que el grabador compara.
-  for (const [opcion, modo] of [["divvideo", "video"], ["div4h1h", "4h1h"]] as const) {
+  // `divafinado` es la version medida de la del video: cuatro pares en vez de doce, colchon 1
+  // y objetivo fijo 1,5R. Va aparte y no sustituye a `divvideo`, porque ese sigue existiendo
+  // para comprobar si el backtest miente sobre la estrategia TAL COMO SE CUENTA.
+  for (const [opcion, modo] of [
+    ["divvideo", "video"], ["div4h1h", "4h1h"], ["divafinado", "afinado"],
+  ] as const) {
     const ruta = txt(opcion, "");
     if (!ruta) continue;
     const dirDiv = dirname(ruta);
@@ -139,7 +145,9 @@ async function main(): Promise<void> {
   const unaVez = process.argv.includes("--unavez") || process.env.BOT_UNAVEZ === "1";
 
   if (tareas.length === 0) {
-    console.error("Ninguna tarea que correr. Pasa --lista, --smc, --divvideo o --div4h1h.");
+    console.error(
+      "Ninguna tarea que correr. Pasa --lista, --smc, --divvideo, --div4h1h o --divafinado.",
+    );
     process.exitCode = 1;
     return;
   }

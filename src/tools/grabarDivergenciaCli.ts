@@ -1,10 +1,10 @@
 /**
  * Graba las divergencias de RSI hacia adelante. Sin dinero, sin ordenes, sin exchange.
  *
- *   npm run grabar:divergencia -- --registro=RUTA.json --modo=video|4h1h [--costebps=0.6]
+ *   npm run grabar:divergencia -- --registro=RUTA.json --modo=video|4h1h|afinado
  *
- * DOS MODOS, PORQUE CONTESTAN PREGUNTAS DISTINTAS
- * ----------------------------------------------
+ * TRES MODOS, PORQUE CONTESTAN PREGUNTAS DISTINTAS
+ * -----------------------------------------------
  * `video`: divergencia en 15m y entrada en 5m, objetivo en la liquidez anterior. Fiel a como se
  * cuenta. El histórico dice que esto PIERDE: -0,279R sobre 783 operaciones, y en EURUSD —el par
  * que el video usa— -0,667R con un 9% de acierto. Se graba igual, y a proposito: si el registro
@@ -16,7 +16,13 @@
  * +0,202. Su problema no es la señal sino el tamaño de posicion: recogerla pedia 109x de
  * exposicion. El registro dira si la señal se sostiene fuera de muestra.
  *
- * En los dos: regla estricta (el segundo pico del RSI ni se asoma al canal), entrada limitada en
+ `afinado`: la MISMA señal, con las tres cosas que salieron de medir — solo los cuatro pares que
+ * se mueven lo suficiente para que el spread no se coma el riesgo, colchon del stop a 1 en vez
+ * de 0,1, y objetivo fijo en 1,5R en vez de la liquidez anterior. Medido sobre 440 operaciones:
+ * 50% de acierto y +0,113R con 1,9 sigma. Es la primera configuracion positiva sobre muestra
+ * grande de todo el proyecto, y por eso se graba: para ver si aguanta fuera de muestra.
+ *
+ * En los tres: regla estricta (el segundo pico del RSI ni se asoma al canal), entrada limitada en
  * el hueco u order block, stop tras la zona con colchon.
  *
  * QUE SABEMOS YA, Y POR QUE SE GRABA IGUAL
@@ -86,43 +92,79 @@ async function main(): Promise<void> {
     return;
   }
   const ahora = new Date().toISOString();
-  const pares = (txt("pares") ?? PARES.join(",")).split(",").filter(Boolean);
+  // LOS CUATRO QUE SE MUEVEN. Su ATR de 5m va de 7,7 a 12,1 pips, asi que un spread de 0,6
+  // pesa entre el 5% y el 8% del riesgo. En GBPUSD (2,8), NZDUSD (1,8) y AUDUSD (1,5) pesaria
+  // el 20-40%, y por eso salen: no es que su señal sea peor, es que ahi no cabe el peaje.
+  // CADJPY tiene ATR de 6,2 y aun asi se queda fuera, por lo contrario: su señal no vale
+  // (-0,063R el solo, y 0% de acierto en las 5 que lleva grabadas en vivo).
+  const AFINADO = ["USDJPY=X", "GBPJPY=X", "EURJPY=X", "AUDJPY=X"];
+  const porDefecto = (txt("modo") ?? "video") === "afinado" ? AFINADO : PARES;
+  const pares = (txt("pares") ?? porDefecto.join(",")).split(",").filter(Boolean);
   const costeBps = num("costebps", 0.6);
   const modo = txt("modo") ?? "video";
-  if (modo !== "video" && modo !== "4h1h") {
-    console.error("--modo tiene que ser 'video' (15m/5m) o '4h1h'");
+  if (modo !== "video" && modo !== "4h1h" && modo !== "afinado") {
+    console.error("--modo tiene que ser 'video' (15m/5m), '4h1h' o 'afinado'");
     process.exitCode = 1;
     return;
   }
   // En 4h1h solo se baja 1h: Yahoo no sirve 4h, asi que se agrega desde el 1h. La apertura es
   // la de la primera vela del bloque y el cierre el de la ultima, que es lo que hace falta.
-  const tfMenor: Temporalidad = modo === "video" ? "5m" : "1h";
-  const tfMayor: Temporalidad | null = modo === "video" ? "15m" : null;
+  const tfMenor: Temporalidad = modo === "4h1h" ? "1h" : "5m";
+  const tfMayor: Temporalidad | null = modo === "4h1h" ? null : "15m";
   const bloque4h = (t0: number): string => {
     const d = new Date(t0 * 1000);
     return `${d.toISOString().slice(0, 10)}_${Math.floor(d.getUTCHours() / 4)}`;
   };
 
+  // EL COLCHON DEL STOP, que es lo unico que cambia entre `video` y `afinado`.
+  //
+  // En `video` va a 0,1 porque es lo que se cuenta. En `afinado` va a 1 porque es lo que se
+  // midio: el stop pasa de 5,3 a 9,4 pips y el peaje del spread del 22% al 13% del riesgo. No
+  // cambia el R:R —el objetivo se mide en R, asi que se aleja igual— solo el peso del coste.
+  const colchon = modo === "afinado" ? 1 : 0.1;
+
   const zona: AjustesSMC = {
-    minHueco: 0.2, minEmpuje: 1, vigencia: 60, esperaBloque: 20, colchon: 0.1,
+    minHueco: 0.2, minEmpuje: 1, vigencia: 60, esperaBloque: 20, colchon,
     objetivoR: 2, radioLiquidez: 0.5, toquesLiquidez: 3, memoriaHuecos: 50,
   };
-  // LOS MISMOS AJUSTES EN LOS DOS MODOS: solo cambia la temporalidad.
+
+  // `video` y `4h1h` graban los ajustes DEL VIDEO, no los que mejor salieron. En 15m/5m el
+  // objetivo de liquidez es justamente la peor de las cuatro variantes. Se deja asi a proposito:
+  // esos registros existen para comprobar si el backtest miente, y para eso tienen que ser
+  // fieles a lo que se cuenta.
   //
-  // Y son los del video, no los que mejor salieron. En 15m/5m el objetivo de liquidez es
-  // justamente la PEOR de las cuatro variantes (-0,33R contra -0,25R del objetivo fijo). Se
-  // deja asi a proposito: el modo `video` existe para comprobar si el backtest miente, y para
-  // eso tiene que ser fiel a lo que se cuenta, no a lo que a mi me sale mejor.
+  // `afinado` es lo contrario: la configuracion que salio de medir, y que solo cambia tres cosas
+  // sobre la del video. Las tres tienen motivo mecanico, no salieron de mirar quien gano:
+  //
+  //   PARES      solo los que se mueven. El spread es fijo en pips y el stop sale del tamaño de
+  //              la zona, asi que en un par con ATR de 1,5 pips el peaje se come el 30% del
+  //              riesgo hagas lo que hagas. Medido en vivo: quitar los cuatro pares lentos sube
+  //              el acierto del 26% al 48%.
+  //   COLCHON 1  el mismo argumento por el otro lado: stop mas ancho, peaje mas pequeño.
+  //   OBJETIVO   fijo en 1,5R en vez de la liquidez anterior. El objetivo de liquidez unas veces
+  //              queda mas lejos de donde llega el precio y otras corta ganadoras antes de
+  //              tiempo; un multiplo del riesgo no tiene ese problema. Y 1,5R es donde la
+  //              medida es mas solida: 50% de acierto, +0,113R, 1,9 sigma sobre 440 operaciones.
+  //
+  // La esperanza es PLANA entre 0,75R y 3R —todos positivos, ninguno distinguible del otro— asi
+  // que el objetivo no decide si se gana: decide la forma de la curva. Se elige 1,5R porque con
+  // 50% de acierto las rachas malas son cortas, y una estrategia que se abandona en la racha
+  // mala tiene esperanza cero por muy buena que sea su aritmetica.
   const ajustes: Ajustes = {
     modo,
     div: {
       periodoRsi: 14, confirmacion: 2, umbralAlto: 70,
       minSeparacion: 3, maxSeparacion: 60, exigirFueraDelCanal: true,
     },
-    ent: {
-      zona, esperaZona: 40, esperaEntrada: 60, colchon: 0.1,
-      stop: "ZONA", objetivo: "LIQUIDEZ", objetivoR: 2, rrMinimo: 1, minRiesgoAtr: 0.5,
-    },
+    ent: modo === "afinado"
+      ? {
+        zona, esperaZona: 40, esperaEntrada: 60, colchon,
+        stop: "ZONA", objetivo: "FIJO", objetivoR: 1.5, rrMinimo: 0, minRiesgoAtr: 0.5,
+      }
+      : {
+        zona, esperaZona: 40, esperaEntrada: 60, colchon,
+        stop: "ZONA", objetivo: "LIQUIDEZ", objetivoR: 2, rrMinimo: 1, minRiesgoAtr: 0.5,
+      },
   };
 
   let reg: Registro<Ajustes>;
@@ -203,10 +245,15 @@ async function main(): Promise<void> {
 
   // ---- Informe -------------------------------------------------------------------------------
   console.log(`GRABADOR DIVERGENCIAS · pasada ${registro.pasadas} · ${ahora.slice(0, 16)}`);
+  // El informe se describe a si mismo a partir de los AJUSTES, no de una cadena escrita a mano.
+  // Cuando se añadio el modo `afinado`, la version a mano siguio diciendo "4h, entrada en 1h" y
+  // "objetivo en la liquidez" sobre un registro de 15m/5m con objetivo fijo. Un informe que
+  // describe mal lo que hace es peor que no tenerlo: se lee y se cree.
   console.log(
     `${menores.size} pares · modo ${modo} · divergencia en ` +
-      `${modo === "video" ? "15m, entrada en 5m" : "4h, entrada en 1h"} · ` +
-      `coste ${costeBps} pb · objetivo en la liquidez anterior`,
+      `${tfMayor ?? "4h"}, entrada en ${tfMenor} · coste ${costeBps} pb · ` +
+      `colchon ${ajustes.ent.colchon} · objetivo ` +
+      `${ajustes.ent.objetivo === "FIJO" ? `fijo ${ajustes.ent.objetivoR}R` : "en la liquidez anterior"}`,
   );
   if (arranque) {
     console.log(
