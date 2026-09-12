@@ -360,3 +360,49 @@ test("una cerrada completa del bot se traduce entera", () => {
   assert.equal(op.adversa, true);
   assert.ok(op.tSeñal < op.tEntrada && op.tEntrada < op.tSalida!);
 });
+
+// ------------------------------------------------------------------------------------------
+// EL HUECO A FAVOR EN LA ENTRADA, que hacia saltar la alarma en operaciones sanas
+// ------------------------------------------------------------------------------------------
+//
+// Medido sobre el registro real: 11 falsas alarmas de 39 operaciones. El grabador llena en la
+// apertura cuando la vela abre pasada del limite —una limitada nunca da un precio peor que el
+// suyo— y dimensiona con el riesgo PLANEADO. El adaptador pasaba el limite en vez del llenado,
+// asi que el auditor veia un precio fuera de su vela y un coste con el signo cambiado.
+
+test("EL ADAPTADOR PASA EL LLENADO, no el limite planeado", () => {
+  const c = {
+    par: "EURJPY=X", direccion: "LARGO" as const,
+    entrada: 178.582, stop: 178.4841, objetivo: 178.872, rr: 2.96,
+    apuntada: "x", tSeñal: 0, caducaEn: 99, abierta: "y", tEntrada: 3600,
+    entradaReal: 178.535,
+    cerrada: "z", salida: 178.4841, r: -0.6294, motivo: "STOP" as const, tSalida: 7200,
+  };
+  const op = deForex(c);
+  assert.equal(op.entrada, 178.535, "el precio al que llenaron de verdad");
+  assert.ok(Math.abs(op.riesgo! - 0.0979) < 1e-4, "el riesgo es el PLANEADO, |limite - stop|");
+});
+
+test("y sin ese arreglo, una operacion correcta daba DOS anomalias falsas", () => {
+  // La vela de entrada abrio en 178.535, por debajo del limite de 178.582: el limite nunca
+  // estuvo dentro de su rango, y aun asi la operacion es perfectamente legitima.
+  const velas: Vela[] = [
+    { t: 0, o: 178.60, h: 178.62, l: 178.58, c: 178.60 },
+    { t: 3600, o: 178.535, h: 178.574, l: 178.521, c: 178.53 },
+    { t: 7200, o: 178.52, h: 178.53, l: 178.48, c: 178.49 },
+  ];
+  const c = {
+    par: "EURJPY=X", direccion: "LARGO" as const,
+    entrada: 178.582, stop: 178.4841, objetivo: 178.872, rr: 2.96,
+    apuntada: "x", tSeñal: 0, caducaEn: 99, abierta: "y", tEntrada: 3600,
+    entradaReal: 178.535,
+    cerrada: "z", salida: 178.4841, r: -0.6294, motivo: "STOP" as const, tSalida: 7200,
+  };
+  assert.deepEqual(auditarUna(deForex(c), velas), [], "con el llenado y el riesgo planeado, limpia");
+
+  // Y lo que hacia antes: pasar el limite y dejar que el riesgo se dedujera de los precios.
+  const comoAntes = { ...deForex(c), entrada: c.entrada, riesgo: undefined };
+  const reglas = auditarUna(comoAntes, velas).map((a) => a.regla);
+  assert.ok(reglas.includes("ENTRADA_IMPOSIBLE"));
+  assert.ok(reglas.includes("COSTE_NEGATIVO"));
+});

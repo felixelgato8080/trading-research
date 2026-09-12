@@ -19,8 +19,18 @@ export function deForex(c: CerradaForex): OperacionAuditable {
   return {
     par: c.par,
     direccion: c.direccion,
-    entrada: c.entrada,
+    // EL LLENADO, NO EL LIMITE. Cuando la vela abre pasada del limite, una orden limitada se
+    // llena MEJOR, en la apertura. El limite planeado puede quedar entonces fuera del rango de
+    // esa vela, y comprobarlo contra las velas daba ENTRADA_IMPOSIBLE en operaciones sanas.
+    entrada: c.entradaReal ?? c.entrada,
     stop: c.stop,
+    // Y EL RIESGO SIGUE SIENDO EL PLANEADO, que es con el que se dimensiono la posicion. Si se
+    // dedujera de |llenado - stop| saldria un denominador distinto del que uso el grabador, y
+    // el auditor veia el coste con el signo cambiado en toda operacion con hueco a favor.
+    //
+    // Las dos cosas juntas daban 11 falsas alarmas sobre 39 operaciones reales. Una alarma que
+    // salta en operaciones correctas se deja de leer, que es la unica forma de que no sirva.
+    riesgo: Math.abs(c.entrada - c.stop),
     objetivo: c.objetivo,
     salida: c.salida,
     adversa: c.motivo === "STOP",
