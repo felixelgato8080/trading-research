@@ -77,18 +77,34 @@ def percentil(xs, p):
 
 
 def tomar_muestras(servidor, login):
-    """Una pasada por los doce pares. Devuelve las muestras validas y cuantas se cayeron."""
+    """Una pasada por los doce pares. Devuelve las muestras, los ticks viejos y los que faltan."""
     vivos = {s.name for s in mt5.symbols_get()}
+    nombres = {}
+    for p in PARES:
+        nombres[p] = p if p in vivos else next((s for s in vivos if s.startswith(p)), None)
+
+    # SE SELECCIONAN TODOS ANTES DE LEER NINGUNO. `symbol_select` mete el simbolo en el Market
+    # Watch, pero su primera cotizacion no esta disponible en la misma llamada: en la primera
+    # pasada tras reiniciar el terminal se caian 5 de los 12. Seleccionar primero y leer despues
+    # les da el tiempo que necesitan.
+    for nombre in nombres.values():
+        if nombre is not None:
+            mt5.symbol_select(nombre, True)
+
     muestras = []
     viejos = 0
+    faltan = []
     ahora = time.time()
     for p in PARES:
-        nombre = p if p in vivos else next((s for s in vivos if s.startswith(p)), None)
+        nombre = nombres[p]
         if nombre is None:
+            faltan.append(f"{p} (no existe en este broker)")
             continue
-        mt5.symbol_select(nombre, True)
         t = mt5.symbol_info_tick(nombre)
         if t is None or t.bid <= 0 or t.ask <= 0:
+            # UN PAR QUE SE CAE EN SILENCIO ES PEOR QUE UN PAR QUE FALTA: la media se calcula
+            # sobre los que quedaron y nadie se entera de que faltaban.
+            faltan.append(f"{p} (sin cotizacion)")
             continue
         if ahora - t.time > MAX_EDAD:
             viejos += 1
@@ -102,7 +118,7 @@ def tomar_muestras(servidor, login):
             "servidor": servidor,
             "login": login,
         })
-    return muestras, viejos
+    return muestras, viejos, faltan
 
 
 def informe(reg, stopRef):
@@ -193,7 +209,7 @@ def main():
             print("ATENCION: esta cuenta NO es demo. Este programa solo lee, pero avisa igual.")
         servidor = cuenta.server if cuenta is not None else "?"
         login = cuenta.login if cuenta is not None else 0
-        muestras, viejos = tomar_muestras(servidor, login)
+        muestras, viejos, faltan = tomar_muestras(servidor, login)
         mt5.shutdown()
 
         ahora = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -209,6 +225,8 @@ def main():
             print(f"+{len(muestras)} muestras" + (f" · {viejos} ticks viejos descartados" if viejos else ""))
         else:
             print(f"mercado cerrado: 0 muestras" + (f", {viejos} ticks viejos" if viejos else ""))
+        if faltan:
+            print(f"   FALTAN {len(faltan)} de {len(PARES)}: {', '.join(faltan)}")
 
     if args.cuenta:
         antes = len(reg["muestras"])
