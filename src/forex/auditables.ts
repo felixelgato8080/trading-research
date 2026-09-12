@@ -42,13 +42,6 @@ export function deForex(c: CerradaForex): OperacionAuditable {
 }
 
 /**
- * El grabador de cripto lleva TRAILING: el `nivelStop` que guarda es el ultimo, no el inicial.
- *
- * El stop inicial —el que define el riesgo y el unico contra el que tiene sentido comprobar que
- * esta del lado bueno— se reconstruye desde la entrada y el riesgo congelado. Pasarle el nivel
- * final haria que toda operacion ganadora pareciera tener el stop del lado malo.
- */
-/**
  * Lo que el bot en papel guarda de una operacion cerrada.
  *
  * Se declara aqui y no se importa de `botCli` porque un CLI no deberia exportar tipos que use
@@ -88,9 +81,19 @@ export function deBot(c: CerradaBot): OperacionAuditable | null {
     tSeñal: epochDelDia(c.diaSenal),
     tEntrada: epochDelDia(c.diaEntrada),
     tSalida: epochDelDia(c.diaSalida),
+    // El bot entra con la APERTURA del dia, asi que todo el recorrido de esa vela viene despues
+    // de haber entrado: que el stop salte el mismo dia es normal, no una imposibilidad.
+    entradaEnApertura: true,
   };
 }
 
+/**
+ * El grabador de cripto lleva TRAILING: el `nivelStop` que guarda es el ultimo, no el inicial.
+ *
+ * El stop inicial —el que define el riesgo y el unico contra el que tiene sentido comprobar que
+ * esta del lado bueno— se reconstruye desde la entrada y el riesgo congelado. Pasarle el nivel
+ * final haria que toda operacion ganadora pareciera tener el stop del lado malo.
+ */
 export function deCripto(c: CerradaCripto): OperacionAuditable {
   const largo = c.direccion === "LARGO";
   return {
@@ -107,5 +110,7 @@ export function deCripto(c: CerradaCripto): OperacionAuditable {
     tSeñal: epochDelDia(c.diaSenal),
     tEntrada: epochDelDia(c.diaEntrada),
     tSalida: epochDelDia(c.diaSalida),
+    // Igual que el bot: la entrada es la apertura del dia siguiente a la señal.
+    entradaEnApertura: true,
   };
 }

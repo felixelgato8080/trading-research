@@ -64,6 +64,21 @@ export interface OperacionAuditable {
   tEntrada: number;
   /** Vela en la que se cerro. Opcional: hay registros que no lo apuntaban. */
   tSalida?: number;
+  /**
+   * Si se entro en la APERTURA de su vela, y no a mitad con una orden limitada.
+   *
+   * Cambia si cerrar en la misma vela es posible o es imposible:
+   *
+   *   entrada en la apertura   todo el recorrido de esa vela viene DESPUES de entrar, asi que
+   *                            que salte el stop el mismo dia es normal. Es el caso del bot de
+   *                            cripto, que entra con la apertura diaria.
+   *   entrada limitada         se lleno en algun punto de la vela y no se sabe en cual, asi que
+   *                            cerrar en esa misma vela seria suponer un orden que no consta.
+   *
+   * Tratarlas igual marcaba como imposibles operaciones correctas del bot, y una alarma que
+   * salta en operaciones sanas se deja de leer.
+   */
+  entradaEnApertura?: boolean;
 }
 
 export type Regla =
@@ -114,8 +129,19 @@ export function auditarUna(op: OperacionAuditable, velas: Vela[]): Anomalia[] {
   const riesgo = op.riesgo ?? Math.abs(op.entrada - op.stop);
 
   // ---- 1. Lo que se comprueba sin mirar el mercado -----------------------------------------
-  if (op.tSalida !== undefined && op.tSalida <= op.tEntrada) {
-    anota("SALIDA_ANTES_DE_ENTRAR", `salida ${op.tSalida} no es posterior a la entrada ${op.tEntrada}`);
+  // Cerrar en la vela de entrada solo es posible si se entro en su apertura. Con orden limitada
+  // no se sabe en que punto de la vela se lleno, asi que darlo por bueno seria suponer un orden
+  // intravela que no consta en ninguna parte.
+  const mismaVela = op.tSalida !== undefined && op.tSalida === op.tEntrada;
+  const imposible = op.tSalida !== undefined &&
+    (op.tSalida < op.tEntrada || (mismaVela && !op.entradaEnApertura));
+  if (imposible) {
+    anota(
+      "SALIDA_ANTES_DE_ENTRAR",
+      mismaVela
+        ? `cierra en su propia vela de entrada (${op.tEntrada}) con orden limitada`
+        : `salida ${op.tSalida} no es posterior a la entrada ${op.tEntrada}`,
+    );
   }
   if (op.tSeñal >= op.tEntrada) {
     anota("SEÑAL_DESPUES_DE_ENTRAR", `señal ${op.tSeñal} no es anterior a la entrada ${op.tEntrada}`);

@@ -406,3 +406,37 @@ test("y sin ese arreglo, una operacion correcta daba DOS anomalias falsas", () =
   assert.ok(reglas.includes("ENTRADA_IMPOSIBLE"));
   assert.ok(reglas.includes("COSTE_NEGATIVO"));
 });
+
+// ------------------------------------------------------------------------------------------
+// CERRAR EN LA PROPIA VELA DE ENTRADA: posible o imposible segun COMO se entro
+// ------------------------------------------------------------------------------------------
+//
+// El bot de cripto entra con la apertura del dia, asi que todo el recorrido de esa vela viene
+// despues: que salte el stop el mismo dia es normal. El grabador de forex entra con una orden
+// limitada a mitad de vela, y ahi cerrar en la misma vela seria suponer un orden intravela que
+// no consta. Tratarlas igual marcaba como imposible una operacion correcta del bot (DOTUSDT,
+// 9 sep) y ponia el bot a salir con codigo 1 en cada pasada.
+
+test("CON ORDEN LIMITADA, cerrar en la vela de entrada sigue siendo imposible", () => {
+  assert.ok(reglas({ tSalida: 1 * H }).includes("SALIDA_ANTES_DE_ENTRAR"));
+});
+
+test("ENTRANDO EN LA APERTURA, cerrar en esa misma vela es NORMAL", () => {
+  const r = reglas({ tSalida: 1 * H, entradaEnApertura: true });
+  assert.ok(!r.includes("SALIDA_ANTES_DE_ENTRAR"), `no deberia quejarse: ${r.join(", ")}`);
+});
+
+test("pero salir ANTES de la vela de entrada es imposible de las dos formas", () => {
+  assert.ok(reglas({ tSalida: 0 }).includes("SALIDA_ANTES_DE_ENTRAR"));
+  assert.ok(reglas({ tSalida: 0, entradaEnApertura: true }).includes("SALIDA_ANTES_DE_ENTRAR"));
+});
+
+test("los dos adaptadores de vela diaria declaran que entran en la apertura", () => {
+  const bot = deBot({
+    simbolo: "DOTUSDT", direccion: "LARGO", entrada: 1.246, salida: 1.1054, r: -1,
+    riesgo: 0.1406, diaSenal: "2026-09-08", diaEntrada: "2026-09-09", diaSalida: "2026-09-09",
+  })!;
+  assert.equal(bot.entradaEnApertura, true);
+  assert.deepEqual(auditarUna(bot, []).map((a) => a.regla), ["SIN_VELAS"],
+    "sin velas solo puede quejarse de eso, no del mismo dia");
+});

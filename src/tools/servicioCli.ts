@@ -2,6 +2,7 @@
  * EL SERVICIO 24/7. Corre las tareas en bucle, para vivir en un servidor.
  *
  *   npm run servicio -- [--unavez] [--cada=3600] [--estado=/data/bot.json] [--lista=/data/monedas.json]
+ *                       [--parar]  el bot no abre nada nuevo, pero sigue cerrando lo abierto
  *                       [--smc=/data/registro-smc.json]
  *                       [--divvideo=/data/div-video.json] [--div4h1h=/data/div-4h1h.json]
  *                       [--divafinado=/data/div-afinado.json]
@@ -92,6 +93,11 @@ async function main(): Promise<void> {
         "--import", "tsx", "src/tools/botCli.ts",
         `--estado=${estado}`, `--lista=${lista}`,
         `--capital=${capital}`, `--riesgo=${riesgo}`, `--tope=${tope}`,
+        // PAUSAR NO ES APAGAR. Con `--parar` el bot deja de abrir posiciones nuevas pero sigue
+        // gestionando las que ya tiene: mueve los trailings y cierra los stops. Quitarlo de la
+        // tarea las dejaria congeladas a medias, y una operacion que deja de seguirse no es una
+        // operacion cerrada: es un agujero en el registro.
+        ...(process.argv.includes("--parar") ? ["--parar"] : []),
       ],
     });
   }
