@@ -25,6 +25,15 @@ importa no es el spread medio: es el que hay A LAS HORAS EN QUE LA ESTRATEGIA EN
 Por eso se acumula y se reporta POR HORA. Y por eso este fichero solo AÑADE muestras: una medida
 tomada es un hecho de ese instante y no se puede mejorar despues. Misma regla que los grabadores.
 
+CADA MUESTRA SABE DE QUE CUENTA VIENE
+-------------------------------------
+El spread no es una propiedad del par: es una propiedad del par EN ESE BROKER Y ESE TIPO DE
+CUENTA. En XM, una Standard cotiza EURUSD a 1,6 pips y una Zero a 0,2 mas comision: ocho veces
+mas. Mezclar muestras de dos cuentas da un numero que no es el de ninguna de las dos.
+
+Por eso cada muestra lleva el servidor y el login, y el informe separa por servidor. Si cambias
+de cuenta a mitad, se ve en vez de disolverse en la media.
+
 LOS TICKS VIEJOS SE DESCARTAN Y SE CUENTAN
 ------------------------------------------
 Con el mercado cerrado el terminal sigue devolviendo el ultimo tick del viernes. Guardarlo como
@@ -67,7 +76,7 @@ def percentil(xs, p):
     return o[min(len(o) - 1, int(len(o) * p))]
 
 
-def tomar_muestras():
+def tomar_muestras(servidor, login):
     """Una pasada por los doce pares. Devuelve las muestras validas y cuantas se cayeron."""
     vivos = {s.name for s in mt5.symbols_get()}
     muestras = []
@@ -90,12 +99,30 @@ def tomar_muestras():
             "bid": t.bid,
             "ask": t.ask,
             "pips": (t.ask - t.bid) / pip(p),
+            "servidor": servidor,
+            "login": login,
         })
     return muestras, viejos
 
 
 def informe(reg, stopRef):
     """Que fraccion del riesgo se lleva el spread, por par y por hora."""
+    # DE QUE CUENTAS VIENEN ESTAS MUESTRAS. Si hay mas de una, el numero de abajo no es de
+    # ninguna: hay que mirarlas por separado o quedarse con la que se vaya a usar.
+    cuentas = {}
+    for m in reg["muestras"]:
+        k = f"{m.get('servidor', '?')} / {m.get('login', '?')}"
+        cuentas[k] = cuentas.get(k, 0) + 1
+    if len(cuentas) > 1:
+        print("\nOJO: hay muestras de MAS DE UNA CUENTA en este registro.")
+        for k, n in sorted(cuentas.items(), key=lambda x: -x[1]):
+            print(f"   {k:<40}{n:>7} muestras")
+        print("   El spread depende del broker y del tipo de cuenta, asi que mezclarlas da un")
+        print("   numero que no es el de ninguna. Usa --cuenta=SERVIDOR para quedarte con una.")
+    elif cuentas:
+        k = next(iter(cuentas))
+        print(f"\nCuenta medida: {k}")
+
     por_par = {}
     for m in reg["muestras"]:
         por_par.setdefault(m["par"], []).append(m)
@@ -148,6 +175,8 @@ def main():
     ap.add_argument("--stop", type=float, default=8.0,
                     help="stop de referencia en pips para expresar el peaje")
     ap.add_argument("--informe", action="store_true", help="solo leer y resumir, sin medir")
+    ap.add_argument("--cuenta", default="",
+                    help="quedarse solo con las muestras de ese servidor")
     args = ap.parse_args()
 
     reg = {"version": 1, "inicio": "", "ultima": "", "muestras": []}
@@ -162,7 +191,9 @@ def main():
         cuenta = mt5.account_info()
         if cuenta is not None and cuenta.trade_mode != 0:
             print("ATENCION: esta cuenta NO es demo. Este programa solo lee, pero avisa igual.")
-        muestras, viejos = tomar_muestras()
+        servidor = cuenta.server if cuenta is not None else "?"
+        login = cuenta.login if cuenta is not None else 0
+        muestras, viejos = tomar_muestras(servidor, login)
         mt5.shutdown()
 
         ahora = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -178,6 +209,12 @@ def main():
             print(f"+{len(muestras)} muestras" + (f" · {viejos} ticks viejos descartados" if viejos else ""))
         else:
             print(f"mercado cerrado: 0 muestras" + (f", {viejos} ticks viejos" if viejos else ""))
+
+    if args.cuenta:
+        antes = len(reg["muestras"])
+        reg = dict(reg)
+        reg["muestras"] = [m for m in reg["muestras"] if args.cuenta in str(m.get("servidor", ""))]
+        print(f"\nFiltrado a '{args.cuenta}': {len(reg['muestras'])} de {antes} muestras.")
 
     informe(reg, args.stop)
 
