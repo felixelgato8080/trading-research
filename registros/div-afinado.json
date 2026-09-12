@@ -1,0 +1,51 @@
+{
+  "version": 2,
+  "nombre": "divergencia",
+  "inicio": "2026-09-12T20:24:28.285Z",
+  "ultima": "2026-09-12T20:24:28.285Z",
+  "pasadas": 1,
+  "ajustes": {
+    "modo": "afinado",
+    "div": {
+      "periodoRsi": 14,
+      "confirmacion": 2,
+      "umbralAlto": 70,
+      "minSeparacion": 3,
+      "maxSeparacion": 60,
+      "exigirFueraDelCanal": true
+    },
+    "ent": {
+      "zona": {
+        "minHueco": 0.2,
+        "minEmpuje": 1,
+        "vigencia": 60,
+        "esperaBloque": 20,
+        "colchon": 1,
+        "objetivoR": 2,
+        "radioLiquidez": 0.5,
+        "toquesLiquidez": 3,
+        "memoriaHuecos": 50
+      },
+      "esperaZona": 40,
+      "esperaEntrada": 60,
+      "colchon": 1,
+      "stop": "ZONA",
+      "objetivo": "FIJO",
+      "objetivoR": 1.5,
+      "rrMinimo": 0,
+      "minRiesgoAtr": 0.5
+    }
+  },
+  "costeBps": 0.6,
+  "vigencia": 60,
+  "pendientes": [],
+  "abiertas": [],
+  "cerradas": [],
+  "vistoHasta": {
+    "USDJPY=X": 1789159800,
+    "GBPJPY=X": 1789161600,
+    "EURJPY=X": 1789161600,
+    "AUDJPY=X": 1789161600
+  },
+  "discrepancias": []
+}
