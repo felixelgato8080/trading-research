@@ -18,6 +18,7 @@
  * sin gastar peticiones ni tocar el fichero.
  */
 import { readFileSync, writeFileSync, existsSync, copyFileSync } from "node:fs";
+import { guardarRegistro } from "../forex/guardar";
 import { velas, type Vela } from "../forex/datos";
 import { velasBinance } from "../forex/binance";
 import {
@@ -246,8 +247,7 @@ async function main(): Promise<void> {
 
   // Copia de seguridad antes de sobrescribir: el registro es irreemplazable, se construye con
   // tiempo real y no se puede regenerar.
-  if (existsSync(ruta)) copyFileSync(ruta, `${ruta}.bak`);
-  writeFileSync(ruta, JSON.stringify(av.registro, null, 2));
+  guardarRegistro(ruta, av.registro);
 
   console.log(
     `\n+${av.nuevasPendientes.length} señales · +${av.nuevasAbiertas.length} abiertas · ` +

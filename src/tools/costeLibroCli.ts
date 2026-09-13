@@ -22,6 +22,7 @@
  * Solo añade muestras: nunca reescribe una ya tomada. Misma regla que los grabadores.
  */
 import { readFileSync, writeFileSync, existsSync, copyFileSync, mkdirSync } from "node:fs";
+import { guardarRegistro } from "../forex/guardar";
 import { dirname } from "node:path";
 import axios from "axios";
 import { medirLibro, resumir, type Libro, type CosteMedido } from "../forex/libro";
@@ -101,8 +102,7 @@ async function main(): Promise<void> {
   // SOLO SE AÑADE. Una muestra tomada es un hecho de ese instante y no se puede mejorar despues.
   reg.muestras.push(...nuevas);
   reg.ultima = ahora;
-  if (existsSync(ruta)) copyFileSync(ruta, `${ruta}.bak`);
-  writeFileSync(ruta, JSON.stringify(reg, null, 2));
+  guardarRegistro(ruta, reg);
 
   console.log(
     `COSTE REAL · ${nuevas.length} medidas nuevas · ${reg.muestras.length} acumuladas · ` +

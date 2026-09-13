@@ -46,6 +46,7 @@
  * EL ESTADO VIVE FUERA DE CUALQUIER CONTENEDOR.
  */
 import { readFileSync, writeFileSync, existsSync, copyFileSync } from "node:fs";
+import { guardarRegistro } from "../forex/guardar";
 import { velas as bajarVelas, type Vela, type Temporalidad } from "../forex/datos";
 import { agregar } from "../forex/agregar";
 import { rsi } from "../forex/rsi";
@@ -278,8 +279,7 @@ async function main(): Promise<void> {
   const { registro, resumen } = pasada(reg, menores, proveedor, ahora, marcador);
 
 
-  if (existsSync(ruta)) copyFileSync(ruta, `${ruta}.bak`);
-  writeFileSync(ruta, JSON.stringify(registro, null, 2));
+  guardarRegistro(ruta, registro);
 
   // ---- Informe -------------------------------------------------------------------------------
   console.log(`GRABADOR DIVERGENCIAS · pasada ${registro.pasadas} · ${ahora.slice(0, 16)}`);

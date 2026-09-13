@@ -21,6 +21,7 @@
  * este proyecto por guardar datos dentro de uno que luego se recreo.
  */
 import { readFileSync, writeFileSync, existsSync, copyFileSync } from "node:fs";
+import { guardarRegistro } from "../forex/guardar";
 import { velasBinance } from "../forex/binance";
 import { auditar, informeAuditoria } from "../forex/auditor";
 import { deBot } from "../forex/auditables";
@@ -267,8 +268,7 @@ async function main(): Promise<void> {
     process.exitCode = 1;
   }
 
-  if (existsSync(ruta)) copyFileSync(ruta, `${ruta}.bak`);
-  writeFileSync(ruta, JSON.stringify(g, null, 2));
+  guardarRegistro(ruta, g);
 
   // ---- Informe ---------------------------------------------------------------------------
   console.log(`BOT · MODO PAPEL · ejecucion ${g.ejecuciones} · ${ahora.slice(0, 16)}`);

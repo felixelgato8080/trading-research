@@ -19,6 +19,7 @@
  * este proyecto por guardar datos dentro de uno que luego se recreo.
  */
 import { readFileSync, writeFileSync, existsSync, copyFileSync } from "node:fs";
+import { guardarRegistro } from "../forex/guardar";
 import { velas as bajarVelas } from "../forex/datos";
 import type { Vela } from "../forex/datos";
 import type { AjustesSMC } from "../forex/smc";
@@ -143,8 +144,7 @@ async function main(): Promise<void> {
   const { registro, resumen } = pasada(reg, datos, proveedor, ahora);
 
 
-  if (existsSync(ruta)) copyFileSync(ruta, `${ruta}.bak`);
-  writeFileSync(ruta, JSON.stringify(registro, null, 2));
+  guardarRegistro(ruta, registro);
 
   // ---- Informe ------------------------------------------------------------------------------
   console.log(`GRABADOR SMC · pasada ${registro.pasadas} · ${ahora.slice(0, 16)}`);

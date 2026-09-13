@@ -375,6 +375,37 @@ score 0 da −1,26R y score 1 da +0,81R).
 
 ---
 
+## DOS TAREAS, NO UNA (13 sep)
+
+`grabar5.cmd` cada **5 minutos**: grabador de `afinado` + ejecutor (~20s).
+`grabar.cmd` cada **15**: bot de cripto en pausa, grabador de `video`, medidor de spread, git.
+
+**Por qué se partió.** Midiendo cuántas señales se llenan antes de que el grabador se entere:
+
+| mira cada | pilla | acierto | esperanza | |
+|---|---|---|---|---|
+| sin retraso | 440 (100%) | 50% | +0,099R | 1,7σ |
+| **5 min** | 371 (84%) | 52% | +0,151R | **2,3σ** |
+| 15 min | 276 (63%) | 52% | +0,150R | 2,0σ |
+| 60 min | 114 (26%) | 48% | +0,065R | 0,6σ |
+
+**El retraso no quita ventaja, quita muestra.** Las 164 que se escapan cada 15 minutos suman
+2,3R de 43,8R y aciertan el 47%: las que se llenan más rápido son las peores (−0,178R las
+inmediatas). De 15 a 5 son un 34% más de operaciones con la misma ventaja, y la sigma sube de
+2,0 a 2,3 solo por muestra.
+
+`video` se queda en 15 porque son 12 pares: a 5 minutos triplicaría las peticiones a Yahoo hasta
+~9.200 al día, con riesgo de que empiece a limitar y nos quedemos sin datos por querer más.
+
+**Lo que la concurrencia obligó a arreglar:** los registros se guardan **atómicamente**
+(`src/forex/guardar.ts` — escribir al lado y renombrar encima), porque `writeFileSync` trunca y
+luego escribe, y con tres procesos leyendo (los dos grabadores, el ejecutor y el `git add`) un
+JSON a medias acabaría en el historial de git, que es justo lo que este proyecto usa como prueba
+de que los precios no se retocaron. Y el ejecutor **se salta** un registro ilegible en vez de
+morirse: dentro de un segundo está bien.
+
+---
+
 ## EL EJECUTOR (13 sep) — hay órdenes de verdad, y solo en demo
 
 `src/mt5/ejecutor.py` pone en MT5 las órdenes que `grabarDivergenciaCli` ya decidió. Corre en

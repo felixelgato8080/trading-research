@@ -572,8 +572,23 @@ def main():
             etiqueta, ruta = "", spec
         if not os.path.exists(ruta):
             raise SystemExit(f"no existe el registro {ruta}")
-        with open(ruta, encoding="utf-8") as f:
-            registros.append((etiqueta, ruta, json.load(f)))
+        # UN REGISTRO A MEDIO ESCRIBIR NO ES UN ERROR FATAL, es una carrera.
+        #
+        # Desde que el grabador de `afinado` corre cada 5 minutos y el de `video` cada 15, las
+        # dos tareas se cruzan. El grabador escribe con un writeFileSync que no es atomico, asi
+        # que leer justo en ese instante da un JSON truncado. Reventar ahi seria perder TODA la
+        # pasada por un fichero que dentro de un segundo esta bien; se salta ese registro, se
+        # dice, y el otro se procesa igual.
+        try:
+            with open(ruta, encoding="utf-8") as f:
+                registros.append((etiqueta, ruta, json.load(f)))
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            print(f"   {etiqueta or ruta}: ilegible ahora mismo ({e.__class__.__name__}), "
+                  "seguramente lo esta escribiendo el grabador. Se salta esta pasada.")
+
+    if not registros:
+        print("Ningun registro legible en esta pasada. No se hace nada.")
+        return
 
     if not mt5.initialize():
         raise SystemExit(f"no se pudo conectar con el terminal: {mt5.last_error()}")
