@@ -6,10 +6,29 @@
  * TRES MODOS, PORQUE CONTESTAN PREGUNTAS DISTINTAS
  * -----------------------------------------------
  * `video`: divergencia en 15m y entrada en 5m, objetivo en la liquidez anterior. Fiel a como se
- * cuenta. El histórico dice que esto PIERDE: -0,279R sobre 783 operaciones, y en EURUSD —el par
- * que el video usa— -0,667R con un 9% de acierto. Se graba igual, y a proposito: si el registro
- * sale plano o positivo, significa que MI BACKTEST ESTA ROTO, y eso valdria mas que la
- * estrategia. Es una prueba de falsacion, no una apuesta.
+ * cuenta. El histórico decia que esto PIERDE: -0,279R sobre 783 operaciones, y en EURUSD -0,667R
+ * con un 9% de acierto. Se grabo como prueba de falsacion, con esto escrito: "si el registro sale
+ * plano o positivo, significa que MI BACKTEST ESTA ROTO, y eso valdria mas que la estrategia".
+ *
+ * PUES ESTA SALIENDO POSITIVO, y hay que decirlo con la misma claridad con la que se dijo lo
+ * otro. A 13 sep, 39 cerradas en vivo:
+ *
+ *     ganadoras  10   suman +50,55R   media +5,06R
+ *     perdedoras 29   suman -34,58R   media -1,19R
+ *     NETO      +15,98R   ·   factor de beneficio 1,46
+ *
+ * El 26% de acierto que yo citaba como defecto no lo es: con una ganadora media 4,25 veces la
+ * perdedora, el equilibrio esta en el 19%. Y el OBJETIVO DE LIQUIDEZ —que descarte por ser "la
+ * peor de las cuatro variantes"— es justamente lo que produce ganadoras de 5R y 10R. Un objetivo
+ * fijo de 1,5R habria cortado las ocho mejores.
+ *
+ * Las perdidas se concentran en GBPUSD (-8,33R), NZDUSD (-4,70), CADJPY (-4,40) y AUDUSD
+ * (-1,74): los pares lentos que `afinado` quita. Los cuatro rapidos suman +31,39R.
+ *
+ * LO QUE ESTO NO ES TODAVIA: 39 operaciones con un error de ±0,48 no distinguen +0,41R del cero,
+ * y el subconjunto ESTRICTO —las apuntadas sin retraso, que son la prueba limpia hacia adelante—
+ * va 0 de 8. Sigue haciendo falta muestra. Pero la direccion contradice al backtest, y eso era
+ * exactamente lo que este registro existia para detectar.
  *
  * `4h1h`: la misma logica en 4h con entrada en 1h. Es lo unico con borde real que encontre:
  * +0,193R sobre 2.250 operaciones, 4,6 sigma sobre el azar, mitades del calendario +0,184 y

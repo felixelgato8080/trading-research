@@ -199,6 +199,29 @@ probada, está esperando.
 
 ## QUÉ HAY MEDIDO AHORA MISMO
 
+**EL BACKTEST DE `div-video` PUEDE ESTAR EQUIVOCADO, y hay que mirarlo.** Se grabó como prueba
+de falsación —el histórico daba −0,279R sobre 783 operaciones— con la promesa escrita de que si
+salía positivo, el roto era el backtest. **Está saliendo positivo.** A 13 sep, 39 cerradas:
+
+| | n | suman | media |
+|---|---|---|---|
+| ganadoras | 10 | +50,55R | +5,06R |
+| perdedoras | 29 | −34,58R | −1,19R |
+| **neto** | 39 | **+15,98R** | PF **1,46** |
+
+El 26% de acierto no es un defecto: con la ganadora media 4,25 veces la perdedora, el equilibrio
+está en el **19%**. Y el **objetivo de liquidez** —descartado en su día por ser "la peor de las
+cuatro variantes"— es justo lo que produce ganadoras de 5R y 10R; un objetivo fijo de 1,5R habría
+cortado las ocho mejores. Las pérdidas se concentran en los pares lentos que `afinado` quita
+(GBPUSD −8,33R, NZDUSD −4,70, CADJPY −4,40); los cuatro rápidos suman +31,39R.
+
+**Lo que NO es todavía:** 39 operaciones con error ±0,48 no distinguen +0,41R del cero, y el
+subconjunto **estricto** —las apuntadas sin retraso, la prueba limpia hacia adelante— va 0 de 8.
+Hace falta muestra. Pero la dirección contradice al backtest, que es exactamente lo que este
+registro existía para detectar, así que **dejar de mirarlo por estar convencido de lo contrario
+sería el error que el registro estaba diseñado para evitar.**
+
+
 **Sobrevive:** ruptura de volatilidad en cripto diario. 18,9% anual con el coste medido, 38% de
 caída máxima, exposición 0,9x. Corriendo en papel.
 
