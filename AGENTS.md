@@ -349,6 +349,49 @@ score 0 da −1,26R y score 1 da +0,81R).
 
 ---
 
+## EL EJECUTOR (13 sep) — hay órdenes de verdad, y solo en demo
+
+`src/mt5/ejecutor.py` pone en MT5 las órdenes que `grabarDivergenciaCli` ya decidió. Corre en
+la tarea programada cada 15 minutos, después del grabador y antes del git.
+
+**No está porque la estrategia esté lista. NO LO ESTÁ** — ver arriba: +0,099R a 1,7σ, elegido en
+muestra, y el 78% del resultado en las horas de peor spread. Está porque **es mejor instrumento
+de medida que el muestreador**: una orden real mide el coste de ESA operación (a qué precio
+llenó contra el que pidió, cuánto deslizó) en vez de muestrear y esperar acertar el momento.
+
+**El listón para dinero real se fijó ANTES de escribirlo**, que es la única forma de que
+signifique algo: **~300 operaciones ejecutadas en demo, esperanza positiva con el coste real de
+los llenados, y que aguante partida por mitades del calendario y par a par.**
+
+Las señales NO se calculan ahí. Se leen del registro. En cuanto haya dos sitios que calculen la
+señal divergen, y el día que lo hagan nadie se entera porque los dos "funcionan".
+
+**Las guardas, por orden de importancia:**
+
+- **Demo o nada.** Se comprueba `trade_mode` y **no hay bandera que lo desactive**. Si algún día
+  hace falta operar en real, se cambia la función a mano y se ve en el diff.
+- Sin `--enserio` no manda nada. El modo por defecto es decir lo que haría.
+- **El tope que manda es el RIESGO EN HUECO, no el nocional.** El nocional asusta —5 de riesgo
+  con stop de 9 pips son 8,5x la cuenta— pero mientras el stop funcione se pierde 5. Lo que
+  arruina es el hueco: con el peor medido (34 pips) cada posición cuesta ~19 en vez de 5, y los
+  cruces del yen saltan juntos. Tope: 15% del saldo con todo abierto a la vez.
+- **Ninguna posición sola se lleva más que su parte** del presupuesto. Sin esto, una señal con
+  stop de 2 pips pasa solo por llegar la primera: son 85 en un hueco, el 8,5% de la cuenta.
+- El lote redondea **hacia abajo** y se niega a subir al mínimo del broker, diciendo cuánto
+  arriesgaría de verdad. Pasarse del riesgo pedido no es un redondeo: es otra apuesta.
+- Tope de posiciones, tope de pérdida diaria leído del historial **del broker** (no del nuestro:
+  el ejecutor puede estar apagado cuando salta un stop), y un fichero `PARAR`.
+
+28 pruebas de la lógica pura, que corren sin terminal y sin mercado abierto — el import de
+MetaTrader5 es tolerante justo para eso.
+
+**Lo único sin probar contra el servidor es una orden ACEPTADA**, que solo se puede el domingo.
+Con el mercado cerrado `order_send` sí llega al broker y devuelve códigos reales (10018 mercado
+cerrado, 10015 precio inválido). Por eso los rechazos **de formato** —modo de llenado,
+caducidad— se reintentan con la variante siguiente en vez de perder la señal, y los de fondo no.
+
+---
+
 ## CÓMO SE TRABAJA AQUÍ
 
 - **TypeScript, CommonJS, `node:test`.** 738 pruebas. `node --import tsx --test test/*.test.ts`.
