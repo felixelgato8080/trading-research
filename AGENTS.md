@@ -254,6 +254,37 @@ Pero la prueba está ciega donde importa: el backtest usa un coste PLANO de 0,6 
 noticia el spread se abre cinco o diez veces. Rehacerlo cuando el medidor de MT5 tenga una semana
 de spreads reales por hora — con el coste de cada momento, la conclusión puede darse la vuelta.
 
+**Medido y APUNTADO, no aplicado — la línea 50 del RSI mayor.** De un vídeo de RSI, que la
+propone al revés: dice que solo operes a favor del momento, con el RSI por encima de 50 para
+largos. Sobre las 440 operaciones de `afinado` da lo contrario:
+
+| en el llenado                        |   n |acierto|esperanza|      |
+|--------------------------------------|-----|-------|---------|------|
+| el RSI mayor AÚN no ha cruzado 50    | 249 |  55%  | +0,228R | 2,9σ |
+| el RSI mayor YA cruzó                | 191 |  43%  | −0,068R | −0,8σ|
+
+Va al revés porque la del vídeo es una estrategia de continuación y ésta es de VUELTA: si el
+momento ya giró, la vuelta ya ocurrió y se está comprando el retroceso de un movimiento hecho.
+
+Aguanta los controles: las dos mitades del calendario (+0,25 vs +0,01 y +0,19 vs −0,13), las dos
+direcciones, tres de los cuatro pares —**en USDJPY no aparece**, 0,191 vs 0,206 sobre 122
+operaciones— y p=0,027 en permutación corrigiendo por los tres umbrales probados. Y **no es el
+retraso del llenado disfrazado**: la correlación entre ambos es 0,028, la espera media es la
+misma (9,1 vs 8,5 velas) y la brecha sigue dentro de cada tramo de espera.
+
+**No se aplica, se apunta.** La medida es en muestra: sale de mirar las mismas 440 operaciones
+que eligieron esta configuración, y hoy se probaron tres familias de ideas, así que el p honesto
+ronda 0,08. Cambiar los ajustes invalidaría el registro entero. En vez de eso el grabador guarda
+`marca` —el RSI mayor en su última vela cerrada antes de la entrada— en cada operación que abre,
+y dentro de dos meses la división se hace sobre operaciones que nadie había visto, emparejadas
+una a una y sin gastar una muestra nueva. Desde el 12 sep en `div-afinado` y `div-video`.
+
+**Medido y descartado del mismo vídeo:** el sesgo del RSI diario (operar solo a favor de la
+tendencia mayor) no separa nada —a favor +0,083R, en contra +0,115R sobre las mismas 440—; y
+exigir 80/20 en vez de 70/30 no mejora de forma distinguible y corta la muestra a la cuarta
+parte (110 operaciones, +0,117R, 1,0σ). El tercer sistema del vídeo, la confirmación
+multitemporal, es literalmente lo que `div-video` y `div-4h1h` ya hacen.
+
 **Descartado y por qué:** ETF y futuros (apalancamiento), copy-trading de memecoins, RSI de forex
 intradía (bruto es PLANO, −0,043R ±0,099, y el peaje se lleva el 28% del riesgo: no hay coste lo
 bastante bajo para salvarlo), TDFI (pierde contra su propia volteada por 2,3σ), VWAP, huecos,

@@ -236,8 +236,46 @@ async function main(): Promise<void> {
     );
   };
 
+  // EL RSI MAYOR EN EL INSTANTE DEL LLENADO, apuntado en cada operacion que se abra.
+  //
+  // No filtra nada: la estrategia grabada sigue siendo exactamente la misma. Es una MEDIDA que
+  // se guarda para poder contestar despues, sobre el registro vivo, una pregunta que aparecio
+  // el 12 sep y que en el histórico da esto sobre las 440 operaciones de `afinado`:
+  //
+  //     RSI mayor AUN sin cruzar 50 al llenarse   249 ops   55%   +0,228R   2,9σ
+  //     RSI mayor YA cruzado                      191 ops   43%   -0,068R  -0,8σ
+  //
+  // Va al reves de lo que se cuenta por ahi —la linea 50 como "confirmacion de momento"— y por
+  // eso es creible: esta señal es de VUELTA, asi que si el momento ya giro, la vuelta ya paso y
+  // se esta comprando el retroceso de un movimiento hecho. Aguanta las dos mitades del
+  // calendario, tres de los cuatro pares (en USDJPY no aparece), las dos direcciones, y sale
+  // p=0,027 en permutacion corrigiendo por los tres umbrales que se probaron. No es el retraso
+  // del llenado disfrazado: la correlacion entre ambos es 0,028 y el efecto sigue dentro de
+  // cada tramo de espera.
+  //
+  // POR QUE SE APUNTA EN VEZ DE APLICARSE. Cambiar los ajustes invalidaria el registro entero, y
+  // la medida de arriba es EN MUESTRA: salio de mirar las mismas 440 operaciones que eligieron
+  // esta configuracion. Apuntando el numero, dentro de dos meses la division se hace sobre
+  // operaciones que nadie habia visto, emparejadas una a una, sin gastar una muestra nueva.
+  const rsiMayores = new Map<string, (number | null)[]>();
+  for (const [par, may] of mayores) {
+    rsiMayores.set(par, rsi(may.map((v) => v.c), ajustes.div.periodoRsi));
+  }
+  const marcador = (par: string, tEntrada: number): number | undefined => {
+    const may = mayores.get(par);
+    const rs = rsiMayores.get(par);
+    if (!may || !rs) return undefined;
+    // La ultima vela mayor CERRADA antes de la entrada. La que esta en curso no se conoce.
+    let j = -1;
+    for (let k = 0; k + 1 < may.length; k += 1) {
+      if (may[k + 1]!.t <= tEntrada) j = k;
+      else break;
+    }
+    return j >= 0 ? rs[j] ?? undefined : undefined;
+  };
+
   const arranque = reg.pasadas === 0;
-  const { registro, resumen } = pasada(reg, menores, proveedor, ahora);
+  const { registro, resumen } = pasada(reg, menores, proveedor, ahora, marcador);
 
 
   if (existsSync(ruta)) copyFileSync(ruta, `${ruta}.bak`);
@@ -316,6 +354,28 @@ async function main(): Promise<void> {
       const medio = retrasos.reduce((x, y) => x + y, 0) / retrasos.length;
       console.log(
         `   Retraso al apuntar: ${medio.toFixed(1)} velas de media, ${Math.max(...retrasos)} la peor.`,
+      );
+    }
+    // LA PREGUNTA ABIERTA, contestada con lo que lleve marcado. Solo cuentan las operaciones
+    // que se abrieron despues del 12 sep: las anteriores no tienen `marca` y meterlas como si
+    // fueran de un lado seria decidir por ellas.
+    const marcadas = registro.cerradas.filter((c) => c.marca != null);
+    if (marcadas.length >= 10) {
+      const sinCruzar = marcadas.filter((c) =>
+        c.direccion === "LARGO" ? c.marca! <= 50 : c.marca! >= 50);
+      const cruzado = marcadas.filter((c) => !sinCruzar.includes(c));
+      const bs = balance(sinCruzar);
+      const bc = balance(cruzado);
+      console.log(
+        `\n   LA LINEA 50 (fuera de muestra, ${marcadas.length} de ${b.n} con marca):\n` +
+          `      RSI mayor SIN cruzar al llenarse: ${bs.n} · ` +
+          `${(bs.aciertos * 100).toFixed(0)}% · ${bs.esperanza.toFixed(3)}R ±${bs.error.toFixed(3)}\n` +
+          `      RSI mayor YA cruzado:             ${bc.n} · ` +
+          `${(bc.aciertos * 100).toFixed(0)}% · ${bc.esperanza.toFixed(3)}R ±${bc.error.toFixed(3)}`,
+      );
+      console.log(
+        "      En el histórico la brecha fue +0,296R a favor de 'sin cruzar'. Haran falta del\n" +
+          "      orden de 150 marcadas por lado para que esto diga algo.",
       );
     }
     if (b.n < 100) {

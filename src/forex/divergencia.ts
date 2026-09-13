@@ -204,6 +204,15 @@ export interface SeñalDivergencia {
   stop: number;
   objetivo: number;
   rr: number;
+  /**
+   * Primera vela menor en la que la orden YA estaba puesta y podia llenarse.
+   *
+   * `i - desde` es lo que tardo el precio en volver a la zona. No cambia ninguna operacion:
+   * esta para poder preguntarle al registro si un llenado tardio vale lo mismo que uno pronto,
+   * que es una pregunta que no se puede contestar reconstruyendo por fuera —la zona y su
+   * `conocidoEn` viven aqui dentro— y que sin este campo hay que responder con proxies.
+   */
+  desde?: number;
 }
 
 /**
@@ -277,7 +286,7 @@ export function señales(
       const v = menores[j]!;
       if (largo ? v.l > entrada : v.h < entrada) continue;
       out.push({
-        i: j, direccion: largo ? "LARGO" : "CORTO", entrada, stop, objetivo, rr,
+        i: j, direccion: largo ? "LARGO" : "CORTO", entrada, stop, objetivo, rr, desde,
       });
       break;
     }

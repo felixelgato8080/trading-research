@@ -90,6 +90,21 @@ export interface Abierta extends Pendiente {
    * Opcional porque las operaciones abiertas antes de que existiera no lo tienen.
    */
   entradaReal?: number;
+  /**
+   * Un numero que el duenno del registro decide, medido EN EL INSTANTE DEL LLENADO.
+   *
+   * Existe para poder preguntarle despues al registro vivo algo que no se penso al empezarlo,
+   * sin tener que arrancar otro registro ni tocar los ajustes —que invalidaria lo grabado— y
+   * sin reconstruir el pasado, que es inventarlo.
+   *
+   * El grabador NO sabe que significa y no lo usa para nada: no filtra, no ordena, no decide.
+   * Solo lo guarda. Quien lo escribe documenta que es; en el registro de divergencias es el RSI
+   * de la temporalidad MAYOR en su ultima vela cerrada antes de la entrada.
+   *
+   * Opcional, y se queda vacio cuando no se pasa marcador: las operaciones abiertas antes de
+   * que existiera no lo tienen y rellenarlo ahora seria inventar un dato que no se midio.
+   */
+  marca?: number;
 }
 
 export interface Cerrada extends Abierta {
@@ -164,6 +179,14 @@ export interface Pasada {
 export type Proveedor = (par: string, velas: Vela[]) => SeñalGrabable[];
 
 /**
+ * Mide algo en el instante del llenado y lo devuelve para guardarlo en `marca`.
+ *
+ * Se le pasa el momento EXACTO de la vela que lleno, y nada mas, justamente para que no pueda
+ * mirar lo que vino despues: lo que mida tiene que ser de ese instante o de antes.
+ */
+export type Marcador = (par: string, tEntrada: number) => number | undefined;
+
+/**
  * Una pasada. Pura: entran velas, sale el registro nuevo.
  *
  * EL ORDEN: resolver lo abierto -> apuntar lo nuevo -> abrir y caducar pendientes.
@@ -182,6 +205,7 @@ export function pasada<A>(
   datos: Map<string, Vela[]>,
   proveedor: Proveedor,
   ahora: string,
+  marcador?: Marcador,
 ): { registro: Registro<A>; resumen: Pasada } {
   const r: Registro<A> = {
     ...reg,
@@ -292,7 +316,11 @@ export function pasada<A>(
           // Si el hueco se paso tambien del stop, la operacion no existe: quedarias largo con
           // el stop por encima de tu llenado. Se deja pendiente a que vuelva un precio sensato.
           if (largo ? real <= p.stop : real >= p.stop) continue;
-          r.abiertas.push({ ...p, abierta: ahora, tEntrada: c.t, entradaReal: real });
+          const marca = marcador?.(par, c.t);
+          r.abiertas.push({
+            ...p, abierta: ahora, tEntrada: c.t, entradaReal: real,
+            ...(marca === undefined ? {} : { marca }),
+          });
           res.abiertas += 1;
           abierta = true;
           break;

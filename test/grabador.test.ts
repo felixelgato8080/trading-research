@@ -335,3 +335,64 @@ test("EN CORTO es simetrico", () => {
   assert.equal(c.entradaReal, 105, "vender mas arriba es mejor");
   assert.equal(c.r, 3.5, "(105 - 70) / 10");
 });
+
+// ---- LA MARCA -------------------------------------------------------------------------------
+//
+// Un numero medido en el llenado y guardado sin que el grabador sepa que significa. Lo que hay
+// que probar no es que se guarde, sino que NO PUEDA MIRAR EL FUTURO y que no cambie nada.
+
+test("LA MARCA SE MIDE EN LA VELA QUE LLENA, no en la de la señal ni en la ultima", () => {
+  const velas = conHueco(
+    v(35, 100, 101, 99, 100),     // no llega a 100 por abajo... si llega: l=99
+    v(36, 100, 135, 94, 130), v(37, 130, 131, 129, 130),
+  );
+  const vistos: number[] = [];
+  const reg = (() => {
+    const r0 = registroNuevo("h", "d0", {}, 0, 50);
+    const marcador = (par: string, t: number) => { vistos.push(t / H); return t / H; };
+    const a = pasada(r0, new Map([["X", velas.slice(0, 35)]]), enCien, "d1", marcador);
+    const b = pasada(a.registro, new Map([["X", velas]]), enCien, "d2", marcador);
+    return pasada(b.registro, new Map([["X", velas]]), enCien, "d3", marcador).registro;
+  })();
+  const c = reg.cerradas[0] ?? reg.abiertas[0]!;
+  assert.equal(c.marca, c.tEntrada / H, "la marca es la del instante del llenado");
+  assert.ok(vistos.every((x) => x <= 37), "no se le pasa ninguna vela posterior a la que llena");
+});
+
+test("SIN MARCADOR el campo no aparece: no se inventa un dato que nadie midio", () => {
+  const reg = tres(conHueco(
+    v(35, 95, 96, 94, 95), v(36, 95, 135, 94, 130), v(37, 130, 131, 129, 130),
+  ));
+  const c = reg.cerradas[0]!;
+  assert.equal("marca" in c, false);
+});
+
+test("LA MARCA NO CAMBIA NINGUNA OPERACION: mismo registro con y sin marcador", () => {
+  const velas = conHueco(
+    v(35, 95, 96, 94, 95), v(36, 95, 135, 94, 130), v(37, 130, 131, 129, 130),
+  );
+  const sin = tres(velas);
+  const con = (() => {
+    const r0 = registroNuevo("h", "d0", {}, 0, 50);
+    const m = () => 42;
+    const a = pasada(r0, new Map([["X", velas.slice(0, 35)]]), enCien, "d1", m);
+    const b = pasada(a.registro, new Map([["X", velas]]), enCien, "d2", m);
+    return pasada(b.registro, new Map([["X", velas]]), enCien, "d3", m).registro;
+  })();
+  assert.equal(con.cerradas.length, sin.cerradas.length);
+  assert.equal(con.cerradas[0]!.r, sin.cerradas[0]!.r);
+  assert.equal(con.cerradas[0]!.entradaReal, sin.cerradas[0]!.entradaReal);
+  assert.equal(con.cerradas[0]!.marca, 42);
+});
+
+test("UN MARCADOR QUE NO SABE devuelve undefined y el campo se queda fuera", () => {
+  const velas = conHueco(
+    v(35, 95, 96, 94, 95), v(36, 95, 135, 94, 130), v(37, 130, 131, 129, 130),
+  );
+  const r0 = registroNuevo("h", "d0", {}, 0, 50);
+  const m = () => undefined;
+  const a = pasada(r0, new Map([["X", velas.slice(0, 35)]]), enCien, "d1", m);
+  const b = pasada(a.registro, new Map([["X", velas]]), enCien, "d2", m);
+  const c = pasada(b.registro, new Map([["X", velas]]), enCien, "d3", m).registro.cerradas[0]!;
+  assert.equal("marca" in c, false, "undefined no es un valor que guardar");
+});
