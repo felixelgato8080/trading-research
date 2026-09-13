@@ -66,6 +66,7 @@
  */
 import { readFileSync, writeFileSync, existsSync, copyFileSync } from "node:fs";
 import { guardarRegistro } from "../forex/guardar";
+import { leerVelas, type VelasDeFichero } from "../forex/velasFichero";
 import { velas as bajarVelas, type Vela, type Temporalidad } from "../forex/datos";
 import { agregar } from "../forex/agregar";
 import { rsi } from "../forex/rsi";
@@ -100,6 +101,21 @@ const PARES = [
 interface Ajustes {
   /** Va DENTRO de los ajustes para que el grabador se niegue a mezclar modos en un registro. */
   modo: string;
+  /**
+   * De donde salieron los precios.
+   *
+   * Tambien dentro de los ajustes, y por el mismo motivo: una señal calculada con velas de
+   * Yahoo y otra con velas de XM no son la misma estrategia. Difieren ~1 pip de forma
+   * sistematica, que sobre un stop de 7 pips es el 14% del riesgo. Mezclarlas en un registro
+   * daria un numero que no es el de ninguna de las dos.
+   *
+   * OPCIONAL, Y SOLO SE ESCRIBE CUANDO ES MT5. Los registros de Yahoo nacieron sin este campo,
+   * y ponerselo ahora cambiaria sus ajustes: `mismosAjustes` compara el objeto entero, asi que
+   * el grabador se negaria a seguir un registro que el mismo escribio ayer. Paso el 13 sep y
+   * tumbo `div-video` y `div-afinado` en la primera pasada. Ausente significa Yahoo, que es de
+   * donde venian todos hasta esa fecha.
+   */
+  fuente?: string;
   div: AjustesDivergencia;
   ent: AjustesEntrada;
 }
@@ -172,6 +188,7 @@ async function main(): Promise<void> {
   // mala tiene esperanza cero por muy buena que sea su aritmetica.
   const ajustes: Ajustes = {
     modo,
+    ...(txt("velas") ? { fuente: "MT5" } : {}),
     div: {
       periodoRsi: 14, confirmacion: 2, umbralAlto: 70,
       minSeparacion: 3, maxSeparacion: 60, exigirFueraDelCanal: true,
@@ -209,12 +226,57 @@ async function main(): Promise<void> {
     console.log(`Registro nuevo en ${ruta}\n`);
   }
 
-  // ---- Descarga: hacen falta las DOS temporalidades ----------------------------------------
+  // ---- De donde salen las velas -------------------------------------------------------------
+  //
+  // CON `--velas=RUTA.json` SE LEEN DEL BROKER en vez de bajarlas de Yahoo, y esa es la
+  // diferencia entre decidir y ejecutar sobre el mismo libro o sobre dos distintos. Medido el
+  // 13 sep sobre ~2.940 velas de 5m por par, Yahoo va 0,82-1,35 pips POR ENCIMA de XM, con un
+  // sesgo constante (media y mediana casi iguales) y las velas bien alineadas en el tiempo.
+  // Sobre stops de 7-9 pips eso es el 9-19% del riesgo.
+  //
+  // La fuente va DENTRO de los ajustes, asi que el grabador se niega a mezclar en un registro
+  // señales calculadas con precios de Yahoo y con precios de XM. No son la misma estrategia.
   const menores = new Map<string, Vela[]>();
   const mayores = new Map<string, Vela[]>();
   let fallos = 0;
   let primerFallo = "";
-  for (const p of pares) {
+  const fichero = txt("velas");
+  if (fichero) {
+    if (!existsSync(fichero)) {
+      console.error(`No existe el fichero de velas ${fichero}. Lo escribe src/mt5/velas.py.`);
+      process.exitCode = 1;
+      return;
+    }
+    const crudo = JSON.parse(readFileSync(fichero, "utf-8")) as VelasDeFichero;
+    const ahoraSeg = Math.floor(Date.parse(ahora) / 1000);
+    const men = leerVelas(crudo, tfMenor, ahoraSeg);
+    // UNAS VELAS RANCIAS NO FALLAN, CONTAMINAN. El grabador apuntaria señales viejas como si
+    // fueran de ahora y el registro dejaria de ser una prueba hacia adelante sin que nada avise.
+    // Cinco minutos de margen sobre el paso: si el exportador dejo de correr, se para aqui.
+    if (men.antiguedad > 300) {
+      console.error(
+        `Las velas de ${fichero} tienen ${Math.round(men.antiguedad / 60)} min de retraso.
+` +
+          "No se toca el registro: apuntar con velas viejas lo convierte en un backtest.",
+      );
+      process.exitCode = 1;
+      return;
+    }
+    const may = tfMayor ? leerVelas(crudo, tfMayor, ahoraSeg) : null;
+    for (const p of pares) {
+      const vm = men.velas.get(p);
+      const vM = may ? may.velas.get(p) : (vm ? agregar(vm, bloque4h) : undefined);
+      if (vm && vM && vm.length > 300 && vM.length > 300) {
+        menores.set(p, vm);
+        mayores.set(p, vM);
+      } else {
+        fallos += 1;
+        if (!primerFallo) primerFallo = `${p}: ${vM?.length ?? 0} mayores, ${vm?.length ?? 0} menores`;
+      }
+    }
+    console.log(`Velas de ${men.fuente} · ${menores.size} pares · al dia
+`);
+  } else for (const p of pares) {
     try {
       const men = await bajarVelas(p, tfMenor);
       let may: Vela[];
