@@ -309,6 +309,32 @@ operaciones entran en la primera hora y solo 12 en las ocho primeras — la señ
 de velas para formarse. Sólo 2 de 440 se quedan abiertas durante el cierre. El hueco de
 reapertura, eso sí, es grande contra nuestro stop: mediana 6,8 pips, p90 17,1, peor 34,2.
 
+**Medido y descartado (13 sep) — el TRAILING y el "efecto sierra".** De una guía de MQL5 para
+scalping que pasó Felix. Sobre las mismas 440 operaciones, con un simulador propio (su nivel
+absoluto no es idéntico al de `simular` —da +0,077R donde el de producción da +0,099R— pero la
+comparación entre variantes es interna y sí vale):
+
+| variante | acierto | esperanza |
+|---|---|---|
+| sin trailing, objetivo 1,5R (lo de hoy) | 50% | **+0,077R** |
+| sin trailing, **sin objetivo** | 30% | −0,192R |
+| trail desde 0,5R a 0,5R | 45% | −0,075R |
+| trail desde 1R a 0,5R | 59% | +0,015R |
+| trail desde 1,5R a 0,5R | 49% | +0,038R |
+| trail desde 2R a 1R | 41% | −0,028R |
+
+**Ninguna variante de trailing llega al objetivo fijo**, y quitar el objetivo es lo peor de todo
+(−0,192R, −2,2σ). Va en la misma dirección que el stop a breakeven, que ya se había medido y era
+catastrófico (+35,16R → +7,53R, acierto 40% → 16%): esta señal necesita que la salida esté fija
+de antemano. El trailing sube el acierto (59%) y baja la esperanza, que es la firma de cortar
+ganadoras para comprar tranquilidad.
+
+**El "efecto sierra"** —exigir que el RSI haya vuelto dentro del canal antes de entrar— también
+sale al revés: 434 ops a +0,081R exigiéndolo contra 45 ops a +0,437R (2,4σ) en las que el RSI
+seguía fuera de 60/40. Es casi el mismo corte que [la línea 50](#) con otro umbral, así que **no
+es evidencia independiente**, pero apunta igual: esta señal es de vuelta y entrar después de que
+el momento se normalice es llegar tarde.
+
 **Medido y APUNTADO, no aplicado — la línea 50 del RSI mayor.** De un vídeo de RSI, que la
 propone al revés: dice que solo operes a favor del momento, con el RSI por encima de 50 para
 largos. Sobre las 440 operaciones de `afinado` da lo contrario:
