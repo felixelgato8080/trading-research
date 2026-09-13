@@ -254,6 +254,54 @@ Pero la prueba está ciega donde importa: el backtest usa un coste PLANO de 0,6 
 noticia el spread se abre cinco o diez veces. Rehacerlo cuando el medidor de MT5 tenga una semana
 de spreads reales por hora — con el coste de cada momento, la conclusión puede darse la vuelta.
 
+**LO MÁS URGENTE AHORA MISMO — el resultado de `afinado` vive en las horas de peor spread.**
+Medido el 12 sep sobre las 440 operaciones, por franja horaria UTC:
+
+| franja | n | %ops | esperanza | aporta | stop | cobrado | tope |
+|---|---|---|---|---|---|---|---|
+| vuelco 21-01 | 77 | 18% | +0,214R | **38%** | 7,0p | 1,09p | **2,59p** |
+| Asia 01-07 | 96 | 22% | +0,183R | **40%** | 7,2p | 0,98p | **2,30p** |
+| Londres 07-13 | 139 | 32% | +0,031R | 10% | 10,0p | 1,07p | 1,38p |
+| solape 13-17 | 71 | 16% | −0,106R | −17% | 8,4p | 0,97p | ya en cero |
+| NY 17-21 | 57 | 13% | +0,228R | 30% | 5,4p | 1,08p | 2,31p |
+
+`tope` = el spread total de ida y vuelta a partir del cual esa franja deja de ganar.
+
+**El 39% de las operaciones entran entre las 21h y las 7h UTC y aportan el 78% del resultado**, y
+son las horas de peor spread del día — y encima las de stop más estrecho (7,0 pips contra 10,0
+en Londres), así que el peaje pesa el doble justo donde más caro es.
+
+Cuidado con la unidad, que es fácil leerla mal: el backtest cobra **0,6 puntos básicos del
+precio**, que en USDJPY a 150 son 0,9 pips y en GBPJPY a 200 son 1,2. El supuesto ya es más
+generoso de lo que su nombre sugiere, y aun así el margen que queda es de ~1,3 pips.
+
+Modelando otros spreads (modelo, NO medida — el número de verdad lo dará MT5):
+
+| escenario | esperanza | total | acierto |
+|---|---|---|---|
+| el supuesto de hoy (~1,0p siempre) | +0,098R | +43,3R | 50% |
+| día 1,5p · noche 2,5p | −0,026R | −11,3R | 49% |
+| día 1,5p · noche 4p | −0,111R | −48,8R | 49% |
+| día 2p · noche 6p | −0,263R | −115,8R | 48% |
+
+En una Standard de XM un cruce JPY no baja de ~1,5-2 pips en el solape y se va a varias veces
+eso en el vuelco. **Con eso, `afinado` es negativo.** Y el acierto apenas se mueve entre
+escenarios (50% → 46%), así que **mirar el % de acierto en vivo no avisaría**: hay que mirar el
+spread por hora, que es exactamente lo que mide `src/mt5/spread.py`.
+
+La defensa mecánica es el stop: a x1,5 el coste pasa del 34% al 23% del riesgo, a x2 al 17%.
+Pero ensanchar no es gratis —con objetivo fijo en R el objetivo se aleja igual— y eso se mide
+aparte, con el spread real, no con el modelo.
+
+**Medido y descartado el mismo día:** que la divergencia mire *a través* del cierre de fin de
+semana (los dos picos del RSI a un lado y otro de un hueco que no se operó). Tienta —51 ops a
+−0,126R contra 389 a +0,129R— pero **no pasa los controles**: p=0,076 en permutación y dos de
+los cuatro pares van al revés (EURJPY +0,450, GBPJPY +0,150). Es ruido de 51 operaciones.
+Y esperar tras la reapertura no protege de nada porque **no hay nada que esperar**: 0 de 440
+operaciones entran en la primera hora y solo 12 en las ocho primeras — la señal necesita horas
+de velas para formarse. Sólo 2 de 440 se quedan abiertas durante el cierre. El hueco de
+reapertura, eso sí, es grande contra nuestro stop: mediana 6,8 pips, p90 17,1, peor 34,2.
+
 **Medido y APUNTADO, no aplicado — la línea 50 del RSI mayor.** De un vídeo de RSI, que la
 propone al revés: dice que solo operes a favor del momento, con el RSI por encima de 50 para
 largos. Sobre las 440 operaciones de `afinado` da lo contrario:
