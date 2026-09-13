@@ -245,6 +245,15 @@ Se puede argumentar que el impulso de 1,5 ATR está calibrado para cripto y que 
 cosa. Es verdad. Pero buscar ahora el impulso que funcione en ETF es exactamente ajustar a los
 datos, así que no se hace.
 
+**Medido y NO implementado — el filtro de noticias.** Bloquear entradas alrededor de eventos de
+alto impacto (147 eventos, calendario de TradingView) empeora el resultado en las cuatro ventanas
+probadas: a ±120 min lo BLOQUEADO da +0,348R contra +0,090R de lo operado. La noticia es lo que
+crea el desplazamiento que la estrategia necesita.
+
+Pero la prueba está ciega donde importa: el backtest usa un coste PLANO de 0,6 pips, y durante una
+noticia el spread se abre cinco o diez veces. Rehacerlo cuando el medidor de MT5 tenga una semana
+de spreads reales por hora — con el coste de cada momento, la conclusión puede darse la vuelta.
+
 **Descartado y por qué:** ETF y futuros (apalancamiento), copy-trading de memecoins, RSI de forex
 intradía (bruto es PLANO, −0,043R ±0,099, y el peaje se lleva el 28% del riesgo: no hay coste lo
 bastante bajo para salvarlo), TDFI (pierde contra su propia volteada por 2,3σ), VWAP, huecos,
