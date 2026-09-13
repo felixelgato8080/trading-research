@@ -253,9 +253,27 @@ def exigir_demo():
     git. Una variable de entorno o un `--real` seria justo lo que no se quiere: que la diferencia
     entre demo y dinero de verdad quepa en un descuido.
     """
+    # LO QUE UN BOTON APAGADO CONVIERTE EN UN MISTERIO.
+    #
+    # Si alguien pulsa el boton de AutoTrading de la barra del terminal, `order_send` sigue
+    # respondiendo pero rechaza TODO con un codigo que no dice eso. Se comprueba aqui y se dice
+    # con su nombre, porque si no la unica pista es un log lleno de rechazos sin sentido.
+    t = mt5.terminal_info()
+    if t is not None:
+        if not t.connected:
+            raise SystemExit("el terminal NO esta conectado al servidor del broker.")
+        if not t.trade_allowed:
+            raise SystemExit(
+                "el AUTOTRADING esta apagado en el terminal (el boton de la barra de arriba).\n"
+                "Sin eso el broker rechaza todas las ordenes. Enciendelo y vuelve a intentarlo."
+            )
     c = mt5.account_info()
     if c is None:
         raise SystemExit("no se pudo leer la cuenta")
+    if not c.trade_allowed:
+        raise SystemExit(f"esta cuenta ({c.login}) no tiene permitido operar.")
+    if not c.trade_expert:
+        raise SystemExit(f"esta cuenta ({c.login}) no permite operar con programas.")
     if c.trade_mode != 0:
         raise SystemExit(
             f"ESTA CUENTA NO ES DEMO (trade_mode={c.trade_mode}, {c.server}/{c.login}).\n"
