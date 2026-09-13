@@ -237,6 +237,93 @@ async function bot(ruta: string | undefined): Promise<void> {
 
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * LA CUENTA DEMO Y EL COSTE REAL, que ya no viven en los registros.
+ *
+ * Desde el 13 sep hay un ejecutor que pone ordenes de verdad en MT5 y un medidor de spread. Los
+ * dos escriben su propio JSON FUERA del repositorio, y sin esto habria que abrirlos a mano, que
+ * es exactamente por lo que existe este panel.
+ *
+ * LO QUE SE ENSEÑA AQUI NO ES "COMO VAMOS": es de donde sale la diferencia entre lo grabado y lo
+ * ejecutado. El desliz y el spread por franja son lo que el backtest no puede saber.
+ */
+function ejecutor(ruta: string): void {
+  if (!existsSync(ruta)) {
+    console.log("\n\nCUENTA DEMO (MT5)\n   sin fichero de estado: todavia no ha puesto ninguna orden.");
+    return;
+  }
+  const e = JSON.parse(readFileSync(ruta, "utf-8")) as {
+    puestas?: Record<string, { descartada?: string }>;
+    llenados?: Array<{ ident: string; desliz_pips: number; par: string }>;
+    historial?: Array<{ par: string; beneficio: number; comision?: number; swap?: number }>;
+  };
+  const lls = e.llenados ?? [];
+  const hist = e.historial ?? [];
+  const puestas = Object.values(e.puestas ?? {});
+  const descartadas = puestas.filter((x) => x.descartada).length;
+
+  console.log("\n\nCUENTA DEMO (MT5)");
+  console.log(`   ordenes puestas ${puestas.length - descartadas} · descartadas por precio ${descartadas}`);
+  if (lls.length) {
+    const ds = lls.map((x) => x.desliz_pips).sort((a, b) => a - b);
+    const peores = ds.filter((x) => x > 0).length;
+    console.log(
+      `   LLENADOS ${lls.length} · desliz mediana ${ds[Math.floor(ds.length / 2)]!.toFixed(2)}p · ` +
+        `medio ${(ds.reduce((a, b) => a + b, 0) / ds.length).toFixed(2)}p · peor ${ds.at(-1)!.toFixed(2)}p`,
+    );
+    // Una limitada NO deberia llenar peor que su precio. Si pasa, hay algo que entender.
+    if (peores) console.log(`   ${peores} llenaron PEOR que el limite pedido. Eso no deberia pasar.`);
+  }
+  if (hist.length) {
+    const suma = hist.reduce((a, h) => a + h.beneficio, 0);
+    const verdes = hist.filter((h) => h.beneficio > 0).length;
+    const costes = hist.reduce((a, h) => a + (h.comision ?? 0) + (h.swap ?? 0), 0);
+    console.log(
+      `   CERRADAS ${hist.length} · ${verdes} en verde (${((verdes / hist.length) * 100).toFixed(0)}%) · ` +
+        `${suma >= 0 ? "+" : ""}${suma.toFixed(2)} USD` +
+        (costes ? ` · comisiones y swaps ${costes.toFixed(2)}` : ""),
+    );
+  } else {
+    console.log("   ninguna cerrada todavia.");
+  }
+}
+
+function spread(ruta: string): void {
+  if (!existsSync(ruta)) {
+    console.log("\nSPREAD REAL (MT5)\n   sin muestras. El medidor solo graba con el mercado abierto.");
+    return;
+  }
+  const r = JSON.parse(readFileSync(ruta, "utf-8")) as {
+    muestras?: Array<{ par: string; t: number; pips: number }>;
+  };
+  const ms = r.muestras ?? [];
+  if (!ms.length) { console.log("\nSPREAD REAL (MT5)\n   0 muestras."); return; }
+  const horas = new Set(ms.map((m) => Math.floor(m.t / 3600))).size;
+  const enFranja = (desde: number, hasta: number) => ms
+    .filter((m) => {
+      const h = new Date(m.t * 1000).getUTCHours();
+      return desde > hasta ? (h >= desde || h < hasta) : (h >= desde && h < hasta);
+    })
+    .map((m) => m.pips)
+    .sort((a, b) => a - b);
+  const med = (xs: number[]) => (xs.length ? xs[Math.floor(xs.length / 2)]! : 0);
+  const p90 = (xs: number[]) => (xs.length ? xs[Math.floor(xs.length * 0.9)]! : 0);
+  // LA FRANJA QUE DECIDE: 21-07 UTC concentra el 39% de las operaciones y el 78% del resultado.
+  const noche = enFranja(21, 7);
+  const dia = enFranja(7, 21);
+  console.log(`\nSPREAD REAL (MT5) · ${ms.length} muestras · ${horas} horas distintas`);
+  if (noche.length) {
+    console.log(`   noche 21-07 UTC: mediana ${med(noche).toFixed(2)}p · p90 ${p90(noche).toFixed(2)}p   (${noche.length})`);
+  }
+  if (dia.length) {
+    console.log(`   dia   07-21 UTC: mediana ${med(dia).toFixed(2)}p · p90 ${p90(dia).toFixed(2)}p   (${dia.length})`);
+  }
+  console.log("   el tope de la franja nocturna son ~2,4 pips de ida y vuelta: por encima, no paga");
+  if (horas < 48) {
+    console.log(`   Con ${horas} horas medidas no se cubre ni el solape ni Asia. Sirve con una semana.`);
+  }
+}
+
 async function main(): Promise<void> {
   console.log(`ESTADO · ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC` +
     `${rapido ? " · modo rapido, sin precios" : ""}`);
@@ -250,8 +337,12 @@ async function main(): Promise<void> {
   ];
   for (const f of fichas) await forex(f);
 
+  ejecutor(txt("estado") ?? "C:/Users/fseal/Desktop/registro-cripto/ejecutor.json");
+  spread(txt("spread") ?? "C:/Users/fseal/Desktop/registro-cripto/spread-mt5.json");
+
   console.log(
-    "\nNada de esto envia ordenes a ningun sitio. No hay codigo para hacerlo en el repositorio.",
+    "\nLos grabadores no envian ordenes. El ejecutor SI, y solo a la cuenta DEMO: comprueba\n" +
+    "que lo es antes de cada orden, y no hay bandera para desactivar esa comprobacion.",
   );
 }
 
