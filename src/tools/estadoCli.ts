@@ -330,8 +330,15 @@ async function main(): Promise<void> {
 
   await bot(txt("bot"));
 
+  // LOS QUE EJECUTAN VAN PRIMERO. Desde el 13 sep lo que llega a la cuenta demo sale de los
+  // registros de XM, que leen las velas del broker; los de Yahoo siguen en papel y sirven de
+  // comparacion, pero mirarlos primero invita a sacar conclusiones de lo que no se esta
+  // operando.
   const fichas: Ficha[] = [
-    { nombre: "DIVERGENCIAS video (15m/5m)", ruta: "registros/div-video.json", esperanza: -0.32 },
+    { nombre: "XM afinado (4 pares) · EJECUTA", ruta: "registros/div-xm.json", esperanza: 0.1 },
+    { nombre: "XM video (12 pares) · EJECUTA", ruta: "registros/div-xm-video.json", esperanza: 0.41 },
+    { nombre: "yahoo video · solo papel", ruta: "registros/div-video.json", esperanza: 0.41 },
+    { nombre: "yahoo afinado · solo papel", ruta: "registros/div-afinado.json", esperanza: 0.1 },
     { nombre: "DIVERGENCIAS 4h/1h", ruta: "registros/div-4h1h.json", esperanza: 0.19 },
     { nombre: "SMC (1h)", ruta: "registros/registro-smc.json", esperanza: 0.04 },
   ];

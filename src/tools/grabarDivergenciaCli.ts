@@ -254,9 +254,20 @@ async function main(): Promise<void> {
     // fueran de ahora y el registro dejaria de ser una prueba hacia adelante sin que nada avise.
     // Cinco minutos de margen sobre el paso: si el exportador dejo de correr, se para aqui.
     if (men.antiguedad > 300) {
+      // EL MERCADO CERRADO NO ES UN FALLO. Entre el viernes a las 21:00 y el domingo a las
+      // 21:00 la ultima vela va envejeciendo, y tratarlo como error serian 576 fallos seguidos
+      // en el log —uno cada cinco minutos durante dos dias— que taparian cualquier problema de
+      // verdad. Se distinguen por el TAMAÑO del retraso: horas es el fin de semana; minutos es
+      // que el exportador dejo de correr, y eso si hay que verlo.
+      if (men.antiguedad > 3 * 3600) {
+        console.log(
+          `Mercado cerrado: la ultima vela tiene ${(men.antiguedad / 3600).toFixed(1)} h. ` +
+            "No hay nada que apuntar.",
+        );
+        return;
+      }
       console.error(
-        `Las velas de ${fichero} tienen ${Math.round(men.antiguedad / 60)} min de retraso.
-` +
+        `Las velas de ${fichero} tienen ${Math.round(men.antiguedad / 60)} min de retraso.\n` +
           "No se toca el registro: apuntar con velas viejas lo convierte en un backtest.",
       );
       process.exitCode = 1;
