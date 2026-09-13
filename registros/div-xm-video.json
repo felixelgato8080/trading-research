@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-13T22:03:14.672Z",
-  "ultima": "2026-09-13T22:50:05.095Z",
-  "pasadas": 11,
+  "ultima": "2026-09-13T23:05:04.990Z",
+  "pasadas": 14,
   "ajustes": {
     "modo": "video",
     "fuente": "MT5",
@@ -39,7 +39,8 @@
   },
   "costeBps": 0.6,
   "vigencia": 60,
-  "pendientes": [
+  "pendientes": [],
+  "abiertas": [
     {
       "par": "USDCAD=X",
       "direccion": "CORTO",
@@ -50,25 +51,11 @@
       "apuntada": "2026-09-13T22:50:05.095Z",
       "tSeñal": 1789339200,
       "caducaEn": 1789357200,
-      "velasDeRetraso": 0
-    }
-  ],
-  "abiertas": [
-    {
-      "par": "USDCHF=X",
-      "direccion": "CORTO",
-      "entrada": 0.81678,
-      "stop": 0.8169339999999999,
-      "objetivo": 0.81362,
-      "rr": 20.519480519481803,
-      "apuntada": "2026-09-13T22:50:05.095Z",
-      "tSeñal": 1789339200,
-      "caducaEn": 1789357200,
-      "velasDeRetraso": 1,
-      "abierta": "2026-09-13T22:50:05.095Z",
+      "velasDeRetraso": 0,
+      "abierta": "2026-09-13T22:55:05.316Z",
       "tEntrada": 1789339500,
-      "entradaReal": 0.81678,
-      "marca": 61.68951726586293
+      "entradaReal": 1.38696,
+      "marca": 58.11813697523906
     }
   ],
   "cerradas": [
@@ -92,21 +79,42 @@
       "salida": 0.816654,
       "r": -1.318116883116909,
       "motivo": "STOP"
+    },
+    {
+      "par": "USDCHF=X",
+      "direccion": "CORTO",
+      "entrada": 0.81678,
+      "stop": 0.8169339999999999,
+      "objetivo": 0.81362,
+      "rr": 20.519480519481803,
+      "apuntada": "2026-09-13T22:50:05.095Z",
+      "tSeñal": 1789339200,
+      "caducaEn": 1789357200,
+      "velasDeRetraso": 1,
+      "abierta": "2026-09-13T22:50:05.095Z",
+      "tEntrada": 1789339500,
+      "entradaReal": 0.81678,
+      "marca": 61.68951726586293,
+      "cerrada": "2026-09-13T23:00:05.158Z",
+      "tSalida": 1789339800,
+      "salida": 0.8169339999999999,
+      "r": -1.3182259740259998,
+      "motivo": "STOP"
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1789339500,
-    "GBPUSD=X": 1789339500,
-    "USDJPY=X": 1789339500,
-    "USDCHF=X": 1789339500,
-    "AUDUSD=X": 1789339500,
-    "USDCAD=X": 1789339200,
-    "NZDUSD=X": 1789339200,
-    "EURJPY=X": 1789339500,
-    "EURGBP=X": 1789339500,
-    "GBPJPY=X": 1789339500,
-    "AUDJPY=X": 1789339500,
-    "CADJPY=X": 1789339500
+    "EURUSD=X": 1789340400,
+    "GBPUSD=X": 1789340400,
+    "USDJPY=X": 1789340400,
+    "USDCHF=X": 1789340100,
+    "AUDUSD=X": 1789340400,
+    "USDCAD=X": 1789340400,
+    "NZDUSD=X": 1789340400,
+    "EURJPY=X": 1789340400,
+    "EURGBP=X": 1789340100,
+    "GBPJPY=X": 1789340400,
+    "AUDJPY=X": 1789340400,
+    "CADJPY=X": 1789340400
   },
   "discrepancias": []
 }
