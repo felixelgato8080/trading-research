@@ -289,6 +289,13 @@ eso en el vuelco. **Con eso, `afinado` es negativo.** Y el acierto apenas se mue
 escenarios (50% → 46%), así que **mirar el % de acierto en vivo no avisaría**: hay que mirar el
 spread por hora, que es exactamente lo que mide `src/mt5/spread.py`.
 
+El medidor (`src/mt5/spread.py`) se cambió el 12 sep por esto mismo: tomaba **una** foto cada
+15 minutos, y un pico de noticia que dura medio minuto tiene un 3% de probabilidad de caer
+dentro de esa foto — o sea, no se veía nunca. Ahora toma **8 lecturas de 30 en 30 segundos**
+(`--veces`, `--intervalo`), descarta la cotización repetida cuando el tick no se ha movido, y
+el informe da un **veredicto** comparando la mediana y el p90 nocturnos contra `--tope` (2,4
+pips por defecto). Las tres ramas del veredicto están probadas con registros sintéticos.
+
 La defensa mecánica es el stop: a x1,5 el coste pasa del 34% al 23% del riesgo, a x2 al 17%.
 Pero ensanchar no es gratis —con objetivo fijo en R el objetivo se aleja igual— y eso se mide
 aparte, con el spread real, no con el modelo.

@@ -76,24 +76,12 @@ def percentil(xs, p):
     return o[min(len(o) - 1, int(len(o) * p))]
 
 
-def tomar_muestras(servidor, login):
-    """Una pasada por los doce pares. Devuelve las muestras, los ticks viejos y los que faltan."""
-    vivos = {s.name for s in mt5.symbols_get()}
-    nombres = {}
-    for p in PARES:
-        nombres[p] = p if p in vivos else next((s for s in vivos if s.startswith(p)), None)
-
-    # SE SELECCIONAN TODOS ANTES DE LEER NINGUNO. `symbol_select` mete el simbolo en el Market
-    # Watch, pero su primera cotizacion no esta disponible en la misma llamada: en la primera
-    # pasada tras reiniciar el terminal se caian 5 de los 12. Seleccionar primero y leer despues
-    # les da el tiempo que necesitan.
-    for nombre in nombres.values():
-        if nombre is not None:
-            mt5.symbol_select(nombre, True)
-
+def barrido(nombres, servidor, login, vistos):
+    """Una lectura de los doce pares. `vistos` evita contar dos veces la misma cotizacion."""
     muestras = []
     viejos = 0
     faltan = []
+    repetidos = 0
     ahora = time.time()
     for p in PARES:
         nombre = nombres[p]
@@ -109,6 +97,14 @@ def tomar_muestras(servidor, login):
         if ahora - t.time > MAX_EDAD:
             viejos += 1
             continue
+        # LA MISMA COTIZACION LEIDA DOS VECES NO ES DOS MEDIDAS. En un par tranquilo el tick
+        # puede no moverse en minutos; guardarlo cada vez que se mira cargaria la distribucion
+        # hacia los momentos quietos, que son justo los que NO deciden nada.
+        clave = (p, int(t.time), t.bid, t.ask)
+        if clave in vistos:
+            repetidos += 1
+            continue
+        vistos.add(clave)
         muestras.append({
             "par": p,
             "t": int(t.time),
@@ -118,10 +114,55 @@ def tomar_muestras(servidor, login):
             "servidor": servidor,
             "login": login,
         })
-    return muestras, viejos, faltan
+    return muestras, viejos, faltan, repetidos
 
 
-def informe(reg, stopRef):
+def tomar_muestras(servidor, login, veces, intervalo):
+    """
+    Varias lecturas repartidas dentro de la pasada, no una sola.
+
+    POR QUE NO BASTA UNA FOTO CADA QUINCE MINUTOS. Lo que puede matar esta estrategia no es el
+    spread medio: es el que hay en el minuto de una noticia, cuando se abre cinco o diez veces
+    durante medio minuto y se vuelve a cerrar. Muestreando una vez cada quince minutos, la
+    probabilidad de caer dentro de ese medio minuto es del 3%: el pico no se ve NUNCA, y el
+    registro diria que todo esta bien mientras las operaciones de esos minutos se lo comen.
+
+    Medido el 12 sep: el 39% de las operaciones de `afinado` entran entre las 21h y las 7h UTC
+    y aportan el 78% del resultado, con un margen de solo ~1,3 pips sobre el coste supuesto.
+    Ahi es donde hace falta resolucion.
+    """
+    vivos = {s.name for s in mt5.symbols_get()}
+    nombres = {}
+    for p in PARES:
+        nombres[p] = p if p in vivos else next((s for s in vivos if s.startswith(p)), None)
+
+    # SE SELECCIONAN TODOS ANTES DE LEER NINGUNO. `symbol_select` mete el simbolo en el Market
+    # Watch, pero su primera cotizacion no esta disponible en la misma llamada: en la primera
+    # pasada tras reiniciar el terminal se caian 5 de los 12. Seleccionar primero y leer despues
+    # les da el tiempo que necesitan.
+    for nombre in nombres.values():
+        if nombre is not None:
+            mt5.symbol_select(nombre, True)
+
+    todas = []
+    viejos = 0
+    faltan = []
+    repetidos = 0
+    vistos = set()
+    for k in range(veces):
+        if k > 0:
+            time.sleep(intervalo)
+        ms, v, f, rep = barrido(nombres, servidor, login, vistos)
+        todas.extend(ms)
+        viejos += v
+        repetidos += rep
+        # Los que faltan se reportan una vez, no doce.
+        if k == 0:
+            faltan = f
+    return todas, viejos, faltan, repetidos
+
+
+def informe(reg, stopRef, tope):
     """Que fraccion del riesgo se lleva el spread, por par y por hora."""
     # DE QUE CUENTAS VIENEN ESTAS MUESTRAS. Si hay mas de una, el numero de abajo no es de
     # ninguna: hay que mirarlas por separado o quedarse con la que se vaya a usar.
@@ -177,6 +218,33 @@ def informe(reg, stopRef):
         if hay:
             print(fila)
 
+    # ---- EL VEREDICTO -------------------------------------------------------------------
+    #
+    # El numero que decide no es el spread medio: es el de las horas en que la estrategia entra,
+    # comparado con lo que esa franja aguanta. Medido el 12 sep sobre las 440 operaciones de
+    # `afinado`, el 39% entra entre las 21h y las 7h UTC y aporta el 78% del resultado, con un
+    # tope de ~2,3-2,6 pips de ida y vuelta. Dejarlo aqui escrito evita tener que acordarse.
+    noche = [x["pips"] for ms in por_par.values() for x in ms
+             if datetime.fromtimestamp(x["t"], timezone.utc).hour >= 21
+             or datetime.fromtimestamp(x["t"], timezone.utc).hour < 7]
+    dia = [x["pips"] for ms in por_par.values() for x in ms
+           if 7 <= datetime.fromtimestamp(x["t"], timezone.utc).hour < 21]
+    if noche and dia:
+        mn, md = mediana(noche), mediana(dia)
+        print(f"\nEL VEREDICTO · tope de la franja nocturna: {tope} pips de ida y vuelta")
+        print(f"   noche 21-07 UTC  mediana {mn:.2f}p · p90 {percentil(noche, 0.9):.2f}p · "
+              f"peor {max(noche):.2f}p   ({len(noche)} muestras)")
+        print(f"   dia   07-21 UTC  mediana {md:.2f}p · p90 {percentil(dia, 0.9):.2f}p · "
+              f"peor {max(dia):.2f}p   ({len(dia)} muestras)")
+        if mn >= tope:
+            print(f"   -> La mediana nocturna ({mn:.2f}p) YA PASA el tope ({tope}p). El 78% del")
+            print("      resultado de `afinado` sale de esas horas: con este spread es negativa.")
+        elif percentil(noche, 0.9) >= tope:
+            print(f"   -> La mediana aguanta pero el p90 ({percentil(noche, 0.9):.2f}p) pasa el")
+            print(f"      tope. Una de cada diez entradas nocturnas no paga. Mirar por hora.")
+        else:
+            print(f"   -> Por debajo del tope. La franja nocturna paga.")
+
     horas = len({datetime.fromtimestamp(m["t"], timezone.utc).strftime("%Y%m%d%H")
                  for m in reg["muestras"]})
     if horas < 48:
@@ -193,6 +261,15 @@ def main():
     ap.add_argument("--informe", action="store_true", help="solo leer y resumir, sin medir")
     ap.add_argument("--cuenta", default="",
                     help="quedarse solo con las muestras de ese servidor")
+    # OCHO LECTURAS CADA 30 SEGUNDOS = CUATRO MINUTOS de los quince que hay entre pasadas.
+    # Deja once minutos de margen para que dos ejecuciones no se solapen: se solapan y las dos
+    # leen el mismo fichero, lo modifican y lo escriben, y la segunda borra lo de la primera.
+    ap.add_argument("--veces", type=int, default=8,
+                    help="lecturas por pasada (1 = como antes, una foto)")
+    ap.add_argument("--intervalo", type=float, default=30.0,
+                    help="segundos entre lecturas")
+    ap.add_argument("--tope", type=float, default=2.4,
+                    help="spread de ida y vuelta a partir del cual la franja nocturna no paga")
     args = ap.parse_args()
 
     reg = {"version": 1, "inicio": "", "ultima": "", "muestras": []}
@@ -209,7 +286,12 @@ def main():
             print("ATENCION: esta cuenta NO es demo. Este programa solo lee, pero avisa igual.")
         servidor = cuenta.server if cuenta is not None else "?"
         login = cuenta.login if cuenta is not None else 0
-        muestras, viejos, faltan = tomar_muestras(servidor, login)
+        veces = max(1, args.veces)
+        intervalo = max(0.0, args.intervalo)
+        if (veces - 1) * intervalo > 11 * 60:
+            print("ATENCION: veces x intervalo pasa de 11 minutos. Con la tarea cada 15 hay")
+            print("riesgo de que dos ejecuciones se solapen y una pise la escritura de la otra.")
+        muestras, viejos, faltan, repetidos = tomar_muestras(servidor, login, veces, intervalo)
         mt5.shutdown()
 
         ahora = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -222,7 +304,9 @@ def main():
             os.makedirs(os.path.dirname(os.path.abspath(args.registro)) or ".", exist_ok=True)
             with open(args.registro, "w", encoding="utf-8") as f:
                 json.dump(reg, f)
-            print(f"+{len(muestras)} muestras" + (f" · {viejos} ticks viejos descartados" if viejos else ""))
+            print(f"+{len(muestras)} muestras en {veces} lecturas"
+                  + (f" · {viejos} ticks viejos descartados" if viejos else "")
+                  + (f" · {repetidos} cotizaciones repetidas" if repetidos else ""))
         else:
             print(f"mercado cerrado: 0 muestras" + (f", {viejos} ticks viejos" if viejos else ""))
         if faltan:
@@ -234,7 +318,7 @@ def main():
         reg["muestras"] = [m for m in reg["muestras"] if args.cuenta in str(m.get("servidor", ""))]
         print(f"\nFiltrado a '{args.cuenta}': {len(reg['muestras'])} de {antes} muestras.")
 
-    informe(reg, args.stop)
+    informe(reg, args.stop, args.tope)
 
 
 if __name__ == "__main__":
