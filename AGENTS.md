@@ -398,6 +398,41 @@ score 0 da −1,26R y score 1 da +0,81R).
 
 ---
 
+## DECIDIMOS CON PRECIOS DE YAHOO Y OPERAMOS EN XM (13 sep)
+
+Y no son los mismos precios. Medido sobre ~2.940 velas de 5m por par:
+
+| par | dif media | dif mediana | peor | sobre su stop |
+|---|---|---|---|---|
+| USDJPY | +0,82p | +0,70p | 9,80p | 9% |
+| GBPJPY | +0,93p | +1,10p | **40,00p** | 13% |
+| EURJPY | +0,91p | +1,00p | 12,70p | 13% |
+| AUDJPY | +1,35p | +1,30p | 9,40p | 19% |
+
+**Las velas SÍ están alineadas**: comparar Yahoo(T) contra XM(T) da 0,84-1,43 pips, y contra
+XM(T±5min) da 2,87-4,68. No es un problema de husos ni de etiquetado.
+
+**Es un SESGO CONSTANTE, no ruido**: media y mediana casi idénticas, y siempre en el mismo
+sentido — Yahoo por encima de XM. La sospecha razonable es que Yahoo da el MEDIO y MT5 construye
+sus velas con el BID, en cuyo caso el sesgo sería medio spread. Cuadra bien en USDJPY (0,82 vs
+~0,85 esperado) y AUDJPY (1,35 vs ~1,4), y peor en GBPJPY (0,93 vs ~1,75), **así que el mecanismo
+no está confirmado** y no se ha corregido nada a partir de esa suposición.
+
+**Lo que sí se sigue de esto, sin necesidad de explicar el porqué:**
+
+- Para `afinado` (stops de 7-9 pips) el desfase es el 9-19% del riesgo. Molesta, no invalida.
+- Para **`div-video` es fatal**: sus stops son de **1,8 pips** y el desfase es de ~1. El nivel de
+  entrada calculado en Yahoo no significa gran cosa en el libro de XM. Su registro en papel
+  seguirá siendo válido como medida de la señal, pero **su ejecución en MT5 medirá otra cosa**.
+- La cobertura (papel contra ejecutado) va a salir baja por esto, no solo por el retraso. Al
+  interpretarla hay que tener las dos causas en la cabeza.
+
+**La solución limpia es leer las velas de MT5 en vez de Yahoo** —analizar y ejecutar sobre los
+mismos precios— pero cambia la fuente de datos de registros vivos, lo que los invalida como
+comparación. Decisión pendiente, no tomada.
+
+---
+
 ## DOS TAREAS, NO UNA (13 sep)
 
 `grabar5.cmd` cada **5 minutos**: grabador de `afinado` + ejecutor (~20s).
