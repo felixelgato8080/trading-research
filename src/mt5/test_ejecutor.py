@@ -10,8 +10,8 @@ silencio: cuantos lotes, cuanta exposicion, y si una señal ya puesta se vuelve 
 import unittest
 
 from ejecutor import (
-    identidad, lote, nocional, perdida_del_dia, que_hacer, riesgo_hueco,
-    simbolo_broker,
+    divisas, exposicion_divisas, identidad, lote, nocional, peaje,
+    perdida_del_dia, que_hacer, riesgo_hueco, simbolo_broker,
 )
 
 # Los de la cuenta de verdad, leidos del terminal el 12 sep: XM, cruces JPY, 3 decimales.
@@ -109,6 +109,45 @@ class RiesgoEnHueco(unittest.TestCase):
 
     def test_sin_stop_no_se_inventa_nada(self):
         self.assertEqual(riesgo_hueco(5.0, 0.0, 34.0), 5.0)
+
+
+class Correlacion(unittest.TestCase):
+    def test_un_par_son_dos_apuestas(self):
+        self.assertEqual(divisas("USDJPY=X"), ("USD", "JPY"))
+        self.assertEqual(divisas("GBPJPY"), ("GBP", "JPY"))
+
+    def test_CUATRO_CRUCES_DEL_YEN_SON_LA_MISMA_APUESTA(self):
+        # Lo que esta guarda existe para ver: el tope de posiciones cuenta cuatro operaciones
+        # distintas, pero en divisas son 10,00 de riesgo contra el yen, todo al mismo lado.
+        pos = [(p, "LARGO", 2.5) for p in ("USDJPY", "GBPJPY", "EURJPY", "AUDJPY")]
+        neto = exposicion_divisas(pos)
+        self.assertAlmostEqual(neto["JPY"], -10.0)
+        for d in ("USD", "GBP", "EUR", "AUD"):
+            self.assertAlmostEqual(neto[d], 2.5)
+
+    def test_posiciones_opuestas_se_cancelan_en_la_divisa_comun(self):
+        # Largo USDJPY y corto GBPJPY: el yen queda plano, y lo que queda es USD contra GBP.
+        neto = exposicion_divisas([("USDJPY", "LARGO", 2.5), ("GBPJPY", "CORTO", 2.5)])
+        self.assertAlmostEqual(neto["JPY"], 0.0)
+        self.assertAlmostEqual(neto["USD"], 2.5)
+        self.assertAlmostEqual(neto["GBP"], -2.5)
+
+    def test_sin_posiciones_no_hay_exposicion(self):
+        self.assertEqual(exposicion_divisas([]), {})
+
+
+class Peaje(unittest.TestCase):
+    def test_EL_MISMO_SPREAD_ES_BARATO_O_RUINOSO_SEGUN_EL_STOP(self):
+        # 1,5 pips contra un stop de 40 es el 4%; contra uno de 1,8 —los de `video`— es el 83%.
+        self.assertAlmostEqual(peaje(1.5, 40.0), 0.0375)
+        self.assertGreater(peaje(1.5, 1.8), 0.8)
+
+    def test_contra_nuestros_stops_reales(self):
+        # Con los 9 pips de `afinado` un spread de 1,5 se lleva el 17% del riesgo.
+        self.assertAlmostEqual(peaje(1.5, 9.0), 1.5 / 9.0)
+
+    def test_sin_stop_el_peaje_es_todo(self):
+        self.assertEqual(peaje(1.5, 0.0), 1.0)
 
 
 def pend(par, t, caduca):

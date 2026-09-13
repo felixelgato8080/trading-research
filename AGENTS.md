@@ -394,6 +394,22 @@ señal divergen, y el día que lo hagan nadie se entera porque los dos "funciona
 - **El nocional AVISA, no corta.** Cortando bloqueaba a `video` en su tercera señal: sus stops de
   1,8 pips dan 20-29x de exposición cada uno, y eso es el colchón 0,1 que la estrategia lleva a
   propósito, no un fallo. Bloquearlo escondía justo los datos que se quieren medir.
+- **El spread del instante se apunta en CADA orden** (`spread_pips`, `peaje`), y el filtro
+  `--tope-peaje` viene **abierto del todo (1,0)** a propósito: ponerlo en 0,3 —lo que tendría
+  sentido para operar— dejaría a `video` sin poner casi ninguna orden, y cerrar esa puerta antes
+  de haberla medido es decidir sin datos justo en lo que se quiere medir. Al cierre del viernes
+  los cuatro pares daban 41%, 87%, 91% y **121%** del riesgo en spread.
+- **Correlación por divisa, no por par.** Los cuatro pares son cruces del yen: cuatro largos no
+  son cuatro apuestas, son la misma apuesta puesta cuatro veces, y el tope de posiciones no lo
+  ve porque cuenta posiciones y no direcciones. `--tope-divisa` limita el riesgo NETO por divisa
+  al 2% del saldo.
+- **El tope diario RETIRA las pendientes**, no solo deja de abrir: una limitada puesta media hora
+  antes sigue viva y puede llenarse cuando ya se había decidido parar. Lo que no hace es cerrar
+  las posiciones abiertas — ésas ya tienen su stop en el bróker, y cerrarlas a mercado cambiaría
+  su resultado por una razón que no es la estrategia.
+- **Reconciliación cada pasada:** apuntadas que el bróker no tiene ni cerró, y posiciones vivas
+  con nuestra marca que no tenemos apuntadas. La segunda es la grave: dinero moviéndose sin que
+  el registro lo sepa.
 - **Guarda de margen:** no se abre si el margen pedido se come más de la mitad del libre. Diez
   posiciones de `video` son ~250x la cuenta; una operación cerrada por margin call no mide la
   estrategia, mide el tamaño de la cuenta.
@@ -402,7 +418,15 @@ señal divergen, y el día que lo hagan nadie se entera porque los dos "funciona
 - Tope de posiciones, tope de pérdida diaria leído del historial **del broker** (no del nuestro:
   el ejecutor puede estar apagado cuando salta un stop), y un fichero `PARAR`.
 
-28 pruebas de la lógica pura, que corren sin terminal y sin mercado abierto — el import de
+**Medido y NO implementado, de una lista de control de riesgo que pasó Felix el 13 sep:** el
+*kill switch* por noticias o por ATR anormal (el filtro de noticias sale al revés: lo bloqueado
+da +0,348R contra +0,090R de lo operado; y subir el filtro de ATR quita 3 ganadoras que valen
++20,79R), y el R:R mínimo de 1:2 (`rrMinimo` medido: recorta ganadoras sin mejorar la
+esperanza). El **cierre de emergencia por desconexión** tampoco: el stop y el objetivo viven en
+el bróker, así que perder la conexión no pone nada en peligro — cerrar a mercado porque se cayó
+el portátil añadiría riesgo en vez de quitarlo.
+
+35 pruebas de la lógica pura, que corren sin terminal y sin mercado abierto — el import de
 MetaTrader5 es tolerante justo para eso.
 
 **Lo único sin probar contra el servidor es una orden ACEPTADA**, que solo se puede el domingo.

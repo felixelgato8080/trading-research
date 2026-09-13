@@ -138,6 +138,51 @@ def riesgo_hueco(riesgo_dinero, stop_pips, hueco_pips):
     return riesgo_dinero * max(1.0, hueco_pips / stop_pips)
 
 
+def divisas(par):
+    """'USDJPY=X' -> ('USD', 'JPY'). Un par son dos apuestas, no una."""
+    b = par.replace("=X", "")[:6]
+    return b[:3], b[3:]
+
+
+def exposicion_divisas(posiciones):
+    """
+    El riesgo en juego por DIVISA, que no es lo mismo que por par.
+
+    POR QUE IMPORTA AQUI Y NO EN OTRO SITIO: nuestros cuatro pares son TODOS cruces del yen.
+    Cuatro largos en USDJPY, GBPJPY, EURJPY y AUDJPY no son cuatro apuestas: son la MISMA
+    apuesta —el yen baja— puesta cuatro veces. El tope de posiciones no lo ve, porque cuenta
+    posiciones y no direcciones.
+
+    No aumenta la perdida maxima: cada una lleva su stop. Lo que aumenta es la probabilidad de
+    que las perdidas lleguen TODAS EL MISMO DIA, que es lo que vacia una cuenta psicologicamente
+    antes que aritmeticamente.
+
+    `posiciones` son tripletas (par, direccion, riesgo). Largo en un par es largo en su base y
+    corto en su cotizada.
+    """
+    neto = {}
+    for par, direccion, riesgo in posiciones:
+        base, cotizada = divisas(par)
+        signo = 1 if direccion == "LARGO" else -1
+        neto[base] = neto.get(base, 0.0) + signo * riesgo
+        neto[cotizada] = neto.get(cotizada, 0.0) - signo * riesgo
+    return neto
+
+
+def peaje(spread_pips, stop_pips):
+    """
+    Que fraccion del riesgo se lleva el spread. ESTE es el numero que decide, no el spread.
+
+    Un spread de 1,5 pips es barato contra un stop de 40 y ruinoso contra uno de 2. Por eso el
+    coste nunca se mira en pips sueltos: se mira contra lo que se arriesga. Medido en el
+    histórico, con stops de 7-9 pips el peaje se lleva el 13-22% del riesgo, y con los 1,8 de
+    `video` pasa del 80%.
+    """
+    if stop_pips <= 0:
+        return 1.0
+    return spread_pips / stop_pips
+
+
 def identidad(par, t_señal, etiqueta=""):
     """
     Lo que hace unica a una señal: la estrategia, el par y la vela que la genero.
@@ -450,6 +495,21 @@ def main():
     # el apalancamiento acumulado se vea en el log en vez de pasar desapercibido.
     ap.add_argument("--tope-nocional", type=float, default=60.0,
                     help="a partir de aqui se AVISA de la exposicion. No corta: no es la guarda")
+    # EL PEAJE SE APUNTA SIEMPRE Y SOLO CORTA SI SE LE PIDE.
+    #
+    # Por defecto en 1,0 (el spread se lleva el 100% del riesgo) practicamente no rechaza nada,
+    # y es a proposito: lo que hace falta ahora son DATOS. Si se pusiera en 0,3 —que es lo que
+    # tendria sentido para operar— `video` no pondria casi ninguna orden, porque sus stops son
+    # de 1,8 pips y el spread de un cruce JPY no baja de 1,5. Cerrar esa puerta antes de haberla
+    # medido seria decidir sin datos justo en lo que se quiere medir.
+    #
+    # El spread del instante se guarda en CADA orden y en cada llenado, se ponga o no el filtro.
+    ap.add_argument("--tope-peaje", type=float, default=1.0,
+                    help="fraccion del riesgo que puede llevarse el spread (1,0 = no filtra)")
+    # TODOS NUESTROS PARES SON CRUCES DEL YEN. Cuatro largos son la misma apuesta cuatro veces,
+    # y el tope de posiciones no lo ve porque cuenta posiciones, no direcciones.
+    ap.add_argument("--tope-divisa", type=float, default=2.0,
+                    help="%% del saldo de riesgo NETO en una misma divisa")
     ap.add_argument("--tope-perdida-dia", type=float, default=3.0,
                     help="%% del saldo perdido en un dia a partir del cual no se abre nada mas")
     ap.add_argument("--parar", default="",
@@ -508,8 +568,30 @@ def main():
     perdida = perdida_del_dia(est.get("historial", []), hoy)
     tope_perdida = cuenta.balance * args.tope_perdida_dia / 100
     if perdida >= tope_perdida:
-        print(f"PARADO POR PERDIDA DIARIA: {perdida:.2f} de un tope de {tope_perdida:.2f}. "
-              "No se abre nada mas hoy.")
+        print(f"PARADO POR PERDIDA DIARIA: {perdida:.2f} de un tope de {tope_perdida:.2f}.")
+        # NO BASTA CON DEJAR DE ABRIR. Una limitada que quedo puesta esta media hora antes sigue
+        # viva en el broker y puede llenarse esta tarde, cuando ya se habia decidido parar. El
+        # tope diario tiene que RETIRAR lo que aun no ha entrado.
+        #
+        # Lo que NO se hace es cerrar las posiciones ABIERTAS. Esas ya tienen su stop puesto en
+        # el broker, y cerrarlas a mercado cambiaria su resultado por una razon que no es la
+        # estrategia: dejarian de medir lo que se quiere medir.
+        vivas_ahora = nuestras_ordenes()
+        if not args.enserio:
+            # EL SIMULACRO NO TOCA NADA, tampoco para cancelar. Retirar ordenes es una escritura
+            # como poner una: si el modo de prueba la hiciera, "probar" dejaria de ser gratis.
+            print(f"   SIMULADO: retiraria {len(vivas_ahora)} orden(es) pendiente(s).")
+        else:
+            canceladas = 0
+            for o in vivas_ahora:
+                r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": o.ticket})
+                if r is not None and r.retcode == mt5.TRADE_RETCODE_DONE:
+                    canceladas += 1
+                else:
+                    print(f"   no se pudo retirar la orden {o.ticket}: "
+                          f"{r.comment if r is not None else mt5.last_error()}")
+            print(f"   {canceladas} de {len(vivas_ahora)} orden(es) pendiente(s) retirada(s).")
+        print("   Las abiertas siguen con su stop en el broker, que es donde tienen que estar.")
         mt5.shutdown()
         return
 
@@ -529,7 +611,15 @@ def main():
             riesgo_precio_pos / (0.01 if "JPY" in pos.symbol else 0.0001),
             args.hueco_peor,
         )
+    abiertas_divisa = [
+        (pos.symbol, "LARGO" if pos.type == mt5.POSITION_TYPE_BUY else "CORTO",
+         est["puestas"].get(pos.comment, {}).get("riesgo_pedido", 0.0))
+        for pos in posiciones
+    ]
     if posiciones:
+        neto = exposicion_divisas(abiertas_divisa)
+        fuerte = sorted(neto.items(), key=lambda x: -abs(x[1]))[:3]
+        print("   por divisa: " + " · ".join(f"{k} {v:+.2f}" for k, v in fuerte if abs(v) > 0.01))
         print(f"   ya abierto: {expuesto / cuenta.balance:.1f}x de exposicion · "
               f"{arriesgado:.2f} {cuenta.currency} en juego si todo salta el stop "
               f"({arriesgado / cuenta.balance * 100:.1f}% del saldo)")
@@ -603,6 +693,32 @@ def main():
                 print(f"   ojo  {ident:<26} exposicion acumulada "
                       f"{(expuesto + exp) / cuenta.balance:.0f}x, stop de {pips:.1f}p")
 
+            # EL SPREAD DEL INSTANTE. Se lee aqui, con la orden ya decidida, que es el unico
+            # momento en que la medida significa algo: el coste de ESTA operacion, no el de un
+            # muestreo cada 30 segundos que quiza cayo en otro minuto.
+            tick = mt5.symbol_info_tick(sym)
+            spread_pips = None
+            pj = None
+            if tick is not None and tick.ask > 0 and tick.bid > 0:
+                spread_pips = (tick.ask - tick.bid) / (0.01 if "JPY" in sym else 0.0001)
+                pj = peaje(spread_pips, pips)
+                if pj > args.tope_peaje:
+                    print(f"   - {ident:<28} peaje: el spread ({spread_pips:.2f}p) se lleva el "
+                          f"{pj * 100:.0f}% de un stop de {pips:.1f}p")
+                    continue
+
+            # CORRELACION: cuatro cruces del yen al mismo lado son UNA apuesta puesta cuatro
+            # veces. El tope de posiciones no lo ve porque cuenta posiciones, no direcciones.
+            candidata = abiertas_divisa + [(sym, p["direccion"], riesgo_dinero)]
+            neto_nuevo = exposicion_divisas(candidata)
+            tope_div = cuenta.balance * args.tope_divisa / 100
+            excedida = [(k, v) for k, v in neto_nuevo.items() if abs(v) > tope_div]
+            if excedida:
+                k, v = max(excedida, key=lambda x: abs(x[1]))
+                print(f"   - {ident:<28} divisa {k}: {abs(v):.2f} de riesgo neto al mismo lado, "
+                      f"tope {tope_div:.2f}. Son la misma apuesta repetida.")
+                continue
+
             # MARGEN: que un stop-out no arruine la medida.
             #
             # Con stops de 1,8 pips el nocional se dispara —10 posiciones de `video` son ~250x la
@@ -623,7 +739,9 @@ def main():
                 sym, info, p, lotes, p["caducaEn"], args.enserio, ident)
             linea = (f"   + {ident:<28} {p['direccion']:<6} {lotes} lotes · stop {pips:.1f}p · "
                      f"riesgo {riesgo_dinero:.2f} · {exp / cuenta.balance:.1f}x · "
-                     f"en hueco {en_hueco:.2f}")
+                     f"hueco {en_hueco:.2f}" +
+                     (f" · spread {spread_pips:.2f}p = {pj * 100:.0f}% del riesgo"
+                      if spread_pips is not None else " · sin cotizacion"))
             if not ok:
                 print(f"{linea}  -> {nota}")
                 continue
@@ -637,11 +755,18 @@ def main():
             puestas += 1
             vivas += 1
             ya_puestas.add(ident)
+            abiertas_divisa.append((sym, p["direccion"], riesgo_dinero))
             if args.enserio:
                 est["puestas"][ident] = {
                     "ticket": ticket, "par": p["par"], "direccion": p["direccion"],
                     "entrada_pedida": p["entrada"], "stop": p["stop"], "objetivo": p["objetivo"],
                     "lotes": lotes, "riesgo_pedido": riesgo_dinero,
+                    "stop_pips": round(pips, 2),
+                    # EL SPREAD AL PONERLA. Es el dato por el que existe todo esto, y se guarda
+                    # aunque el filtro no corte: sin el no se puede saber despues si una
+                    # operacion perdio por la señal o por el peaje.
+                    "spread_pips": None if spread_pips is None else round(spread_pips, 2),
+                    "peaje": None if pj is None else round(pj, 3),
                     "puesta": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                     "tSeñal": p["tSeñal"],
                 }
@@ -674,6 +799,25 @@ def main():
         os.makedirs(os.path.dirname(os.path.abspath(args.estado)) or ".", exist_ok=True)
         with open(args.estado, "w", encoding="utf-8") as f:
             json.dump(est, f, indent=2)
+
+    # ---- RECONCILIACION: lo que creemos contra lo que el broker dice ------------------------
+    #
+    # El estado local puede mentir de dos formas, y las dos son fallos que hay que ver: una orden
+    # que creemos puesta y el broker no tiene (se rechazo y no nos enteramos, o se perdio la
+    # respuesta), y una posicion nuestra que el broker tiene y nosotros no apuntamos. La segunda
+    # es la peor: seria dinero moviendose sin que este registro lo sepa.
+    vivos_broker = {o.comment for o in nuestras_ordenes()} | {q.comment for q in nuestras_posiciones()}
+    cerrados = {h.get("ident") for h in est.get("historial", [])}
+    fantasmas = [k for k in est["puestas"] if k not in vivos_broker and k not in cerrados]
+    huerfanas = [k for k in vivos_broker if k and k not in est["puestas"]]
+    if fantasmas:
+        print(f"\nOJO · {len(fantasmas)} apuntada(s) que el broker no tiene ni cerro: "
+              f"{', '.join(fantasmas[:5])}")
+        print("   O caducaron en el broker, o la orden nunca llego. Si se repite, mirar el log.")
+    if huerfanas:
+        print(f"\nOJO · {len(huerfanas)} viva(s) en el broker con nuestra marca que NO tenemos "
+              f"apuntadas: {', '.join(sorted(huerfanas)[:5])}")
+        print("   Eso es dinero moviendose sin que este registro lo sepa. Mirar antes de seguir.")
 
     informe_datos(est, cuenta)
 
