@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-08T01:08:52.791Z",
-  "ultima": "2026-09-13T23:31:57.827Z",
-  "pasadas": 352,
+  "ultima": "2026-09-13T23:46:57.824Z",
+  "pasadas": 353,
   "ajustes": {
     "modo": "video",
     "div": {
@@ -856,18 +856,18 @@
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1789342200,
-    "GBPUSD=X": 1789342200,
-    "USDJPY=X": 1789342200,
-    "USDCHF=X": 1789342200,
-    "AUDUSD=X": 1789341900,
-    "USDCAD=X": 1789342200,
-    "NZDUSD=X": 1789341900,
-    "EURJPY=X": 1789342200,
-    "EURGBP=X": 1789342200,
-    "GBPJPY=X": 1789342200,
-    "AUDJPY=X": 1789342200,
-    "CADJPY=X": 1789342200
+    "EURUSD=X": 1789343100,
+    "GBPUSD=X": 1789343100,
+    "USDJPY=X": 1789343100,
+    "USDCHF=X": 1789343100,
+    "AUDUSD=X": 1789342800,
+    "USDCAD=X": 1789343100,
+    "NZDUSD=X": 1789342800,
+    "EURJPY=X": 1789343100,
+    "EURGBP=X": 1789343100,
+    "GBPJPY=X": 1789343100,
+    "AUDJPY=X": 1789343100,
+    "CADJPY=X": 1789343100
   },
   "discrepancias": []
 }
