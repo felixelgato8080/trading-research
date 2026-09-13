@@ -76,7 +76,36 @@ def percentil(xs, p):
     return o[min(len(o) - 1, int(len(o) * p))]
 
 
-def barrido(nombres, servidor, login, vistos):
+def desfase_servidor(nombres):
+    """
+    Cuantos segundos va el reloj del servidor por delante de UTC.
+
+    EL FALLO QUE ESTO ARREGLA, encontrado el 13 sep en la primera hora de datos reales: MT5
+    devuelve `tick.time` como un epoch construido con la hora del SERVIDOR, no con UTC. XM va en
+    UTC+3 en verano, asi que una muestra tomada a las 21:00 UTC se guardaba como si fueran las
+    00:00 y el informe por horas salia desplazado TRES HORAS.
+
+    No es un detalle de formato: toda la decision de esta estrategia cuelga de comparar el spread
+    POR HORA contra las horas en que entra, y esas estan medidas en UTC. Tres horas de desfase
+    mueven la franja del vuelco (21-01) encima de la de Asia.
+
+    Se deduce del tick mas fresco: la diferencia contra el reloj real, redondeada a la media hora
+    mas cercana —hay husos a :30— porque el tick puede tener unos segundos de antiguedad.
+    """
+    ahora = time.time()
+    mejor = None
+    for nombre in nombres.values():
+        if nombre is None:
+            continue
+        t = mt5.symbol_info_tick(nombre)
+        if t is not None and t.time > 0 and (mejor is None or t.time > mejor):
+            mejor = t.time
+    if mejor is None:
+        return 0
+    return int(round((mejor - ahora) / 1800.0) * 1800)
+
+
+def barrido(nombres, servidor, login, vistos, desfase):
     """Una lectura de los doce pares. `vistos` evita contar dos veces la misma cotizacion."""
     muestras = []
     viejos = 0
@@ -94,7 +123,7 @@ def barrido(nombres, servidor, login, vistos):
             # sobre los que quedaron y nadie se entera de que faltaban.
             faltan.append(f"{p} (sin cotizacion)")
             continue
-        if ahora - t.time > MAX_EDAD:
+        if ahora - (t.time - desfase) > MAX_EDAD:
             viejos += 1
             continue
         # LA MISMA COTIZACION LEIDA DOS VECES NO ES DOS MEDIDAS. En un par tranquilo el tick
@@ -107,7 +136,10 @@ def barrido(nombres, servidor, login, vistos):
         vistos.add(clave)
         muestras.append({
             "par": p,
-            "t": int(t.time),
+            # EN UTC DE VERDAD, no en hora del servidor. El desfase se guarda al lado para que
+            # una muestra vieja siga siendo interpretable aunque cambie el horario de verano.
+            "t": int(t.time) - desfase,
+            "desfase": desfase,
             "bid": t.bid,
             "ask": t.ask,
             "pips": (t.ask - t.bid) / pip(p),
@@ -144,6 +176,9 @@ def tomar_muestras(servidor, login, veces, intervalo):
         if nombre is not None:
             mt5.symbol_select(nombre, True)
 
+    desfase = desfase_servidor(nombres)
+    if desfase:
+        print(f"   el servidor va {desfase / 3600:+.1f}h respecto a UTC; las muestras se guardan en UTC")
     todas = []
     viejos = 0
     faltan = []
@@ -152,7 +187,7 @@ def tomar_muestras(servidor, login, veces, intervalo):
     for k in range(veces):
         if k > 0:
             time.sleep(intervalo)
-        ms, v, f, rep = barrido(nombres, servidor, login, vistos)
+        ms, v, f, rep = barrido(nombres, servidor, login, vistos, desfase)
         todas.extend(ms)
         viejos += v
         repetidos += rep
