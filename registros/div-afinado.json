@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-12T20:24:28.285Z",
-  "ultima": "2026-09-13T19:32:13.148Z",
-  "pasadas": 47,
+  "ultima": "2026-09-13T19:46:53.844Z",
+  "pasadas": 50,
   "ajustes": {
     "modo": "afinado",
     "div": {
