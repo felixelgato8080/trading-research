@@ -124,10 +124,12 @@ def riesgo_hueco(riesgo_dinero, stop_pips, hueco_pips):
     te arruina: mientras el stop funcione, la perdida son 5. Lo que te arruina es el hueco, que
     es cuando el stop NO funciona porque no hubo precio donde estaba.
 
-    Medido sobre nuestros cuatro pares: el hueco de reapertura tiene mediana de 6,8 pips, p90 de
-    17,1 y el peor fue 34,2. Contra un stop de 7-9 pips, el peor caso cuesta cuatro o cinco veces
-    el riesgo pedido. Y los cruces del yen van juntos, asi que hay que suponer que les pasa a
-    todos a la vez, no a uno.
+    Medido sobre 66.982 saltos entre velas de 5m en nuestros cuatro pares, dentro de la sesion:
+    mediana 0,20 pips · p90 0,80 · p99 2,90 · p99,9 10,10 · peor 36,50. Contra un stop de 2 pips
+    —los de `video`— un hueco de 10 cuesta CINCO VECES el riesgo pedido; contra uno de 9 pips,
+    apenas un 11% mas. Por eso la guarda pega donde tiene que pegar: el stop estrecho es el caro.
+
+    Y los cruces del yen van juntos, asi que hay que suponer que les pasa a todos a la vez.
 
     Con stop mas ancho que el hueco no hay sorpresa: se pierde lo previsto.
     """
@@ -136,16 +138,27 @@ def riesgo_hueco(riesgo_dinero, stop_pips, hueco_pips):
     return riesgo_dinero * max(1.0, hueco_pips / stop_pips)
 
 
-def identidad(par, t_señal):
-    """Lo que hace unica a una señal. El par mas la vela que la genero."""
-    return f"{par.replace('=X', '')}:{int(t_señal)}"
+def identidad(par, t_señal, etiqueta=""):
+    """
+    Lo que hace unica a una señal: la estrategia, el par y la vela que la genero.
+
+    LA ETIQUETA NO SOBRA. `video` y `afinado` miran los mismos pares y la misma vela, asi que
+    pueden dar dos señales con el mismo par y el mismo `tSeñal` — distintas de verdad, porque el
+    colchon del stop es 0,1 en una y 1 en la otra, y por tanto el stop, el tamaño y el objetivo
+    son otros. Sin la etiqueta la segunda se descartaria por "ya estaba puesta" y solo se
+    mediria una de las dos.
+
+    Tiene que caber en 31 caracteres, que es lo que MT5 guarda del comentario de una orden.
+    """
+    base = f"{par.replace('=X', '')}:{int(t_señal)}"
+    return f"{etiqueta}:{base}" if etiqueta else base
 
 
 def redondear(precio, digitos):
     return round(float(precio), int(digitos))
 
 
-def que_hacer(pendientes, ya_puestas, ahora, tope_posiciones, abiertas_ahora):
+def que_hacer(pendientes, ya_puestas, ahora, tope_posiciones, abiertas_ahora, etiqueta=""):
     """
     Que pendientes del registro hay que poner, y cuales no.
 
@@ -156,7 +169,7 @@ def que_hacer(pendientes, ya_puestas, ahora, tope_posiciones, abiertas_ahora):
     poner, saltar = [], []
     hueco = max(0, tope_posiciones - abiertas_ahora)
     for p in pendientes:
-        ident = identidad(p["par"], p["tSeñal"])
+        ident = identidad(p["par"], p["tSeñal"], etiqueta)
         if ident in ya_puestas:
             saltar.append((ident, "ya estaba puesta"))
             continue
@@ -263,7 +276,7 @@ def recoger_cerradas(est, dias=14):
     return nuevas
 
 
-def poner_orden(sym, info, p, lotes, caduca, enserio):
+def poner_orden(sym, info, p, lotes, caduca, enserio, ident):
     """
     Una limitada con stop y objetivo, con caducidad puesta en el broker.
 
@@ -282,7 +295,7 @@ def poner_orden(sym, info, p, lotes, caduca, enserio):
         "sl": redondear(p["stop"], info.digits),
         "tp": redondear(p["objetivo"], info.digits),
         "magic": MAGIA,
-        "comment": identidad(p["par"], p["tSeñal"])[:31],
+        "comment": ident[:31],
         # LA CADUCIDAD LA LLEVA EL BROKER. Si la llevaramos nosotros, un fin de semana con el
         # portatil apagado dejaria ordenes vivas mucho despues de que su señal dejara de valer.
         "type_time": mt5.ORDER_TIME_SPECIFIED,
@@ -329,6 +342,64 @@ def poner_orden(sym, info, p, lotes, caduca, enserio):
     return False, None, ultimo
 
 
+def informe_datos(est, cuenta):
+    """
+    Lo que llevamos medido. Sin metas y sin veredictos: numeros.
+
+    Esto NO dice si hay que operar en real, ni cuanto falta para nada. Dice que esta pasando con
+    los llenados y con el dinero, que es lo unico que este fichero puede saber de verdad.
+    """
+    lls = est.get("llenados", [])
+    hist = est.get("historial", [])
+    if not lls and not hist:
+        return
+
+    if lls:
+        ds = sorted(x["desliz_pips"] for x in lls)
+        peor = ds[-1]
+        medio = sum(ds) / len(ds)
+        mediana = ds[len(ds) // 2]
+        malos = [x for x in ds if x > 0]
+        print(f"\nLLENADOS · {len(lls)}")
+        print(f"   desliz contra el limite pedido: mediana {mediana:+.2f}p · "
+              f"medio {medio:+.2f}p · peor {peor:+.2f}p")
+        # UNA LIMITADA NO DEBERIA LLENAR PEOR QUE SU PRECIO. Si pasa, hay algo que entender:
+        # o el broker desliza las limitadas, o el precio que pedimos no era el que creiamos.
+        if malos:
+            print(f"   {len(malos)} de {len(lls)} llenaron PEOR que el limite. Una orden "
+                  f"limitada no deberia: mira esas.")
+        por_est = {}
+        for x in lls:
+            por_est.setdefault(x["ident"].split(":")[0], []).append(x["desliz_pips"])
+        if len(por_est) > 1:
+            for k, v in sorted(por_est.items()):
+                print(f"   {k:<10} {len(v):>4} llenados · desliz medio "
+                      f"{sum(v) / len(v):+.2f}p")
+
+    if hist:
+        gan = [h for h in hist if h["beneficio"] > 0]
+        total = sum(h["beneficio"] for h in hist)
+        comis = sum(h.get("comision", 0) + h.get("swap", 0) for h in hist)
+        print(f"\nCERRADAS · {len(hist)} · {len(gan)} en verde "
+              f"({len(gan) / len(hist) * 100:.0f}%) · {total:+.2f} {cuenta.currency}")
+        if comis:
+            print(f"   de eso, {comis:+.2f} son comisiones y swaps")
+        por_est = {}
+        for h in hist:
+            por_est.setdefault(str(h.get("ident", "?")).split(":")[0], []).append(h["beneficio"])
+        if len(por_est) > 1:
+            for k, v in sorted(por_est.items()):
+                verdes = len([x for x in v if x > 0])
+                print(f"   {k:<10} {len(v):>4} cerradas · {verdes / len(v) * 100:>3.0f}% verdes · "
+                      f"{sum(v):+.2f}")
+        por_par = {}
+        for h in hist:
+            por_par.setdefault(h["par"], []).append(h["beneficio"])
+        if len(por_par) > 1:
+            print("   por par:", " · ".join(
+                f"{k} {sum(v):+.2f}" for k, v in sorted(por_par.items(), key=lambda x: -sum(x[1]))))
+
+
 def main():
     if mt5 is None:
         raise SystemExit(
@@ -336,13 +407,20 @@ def main():
             "terminal abierto: `pip install MetaTrader5` y vuelve a intentarlo."
         )
     ap = argparse.ArgumentParser()
-    ap.add_argument("--registro", required=True, help="el JSON que escribe el grabador")
+    # VARIOS REGISTROS EN UNA SOLA PASADA, y no una ejecucion por estrategia.
+    #
+    # Porque las guardas tienen que ver la CUENTA ENTERA. Dos ejecuciones separadas se creerian
+    # cada una sola en el mundo: cada una dejaria abrir hasta su tope y arriesgar hasta su
+    # presupuesto de hueco, y la cuenta acabaria con el doble de ambos sin que ninguna de las
+    # dos hiciera nada mal. El riesgo no se reparte por estrategia, se reparte por cuenta.
+    ap.add_argument("--registro", action="append", required=True, metavar="ETIQUETA:RUTA",
+                    help="p.ej. --registro=video:C:/.../div-video.json (se puede repetir)")
     ap.add_argument("--estado", required=True, help="donde el ejecutor lleva su cuenta")
     ap.add_argument("--enserio", action="store_true",
                     help="mandar de verdad. Sin esto solo dice lo que haria")
-    ap.add_argument("--riesgo", type=float, default=0.5,
+    ap.add_argument("--riesgo", type=float, default=0.25,
                     help="%% del saldo por operacion")
-    ap.add_argument("--tope-posiciones", type=int, default=4)
+    ap.add_argument("--tope-posiciones", type=int, default=12)
     # EL TOPE DE VERDAD ES ESTE. Si todo lo abierto saltara por encima de su stop a la vez
     # —los cruces del yen van juntos— esto es lo que se puede perder, en % del saldo. Con 5 de
     # riesgo, stop de 9 pips y el peor hueco medido (34 pips), cada posicion cuesta ~19 en vez
@@ -350,13 +428,28 @@ def main():
     # antes de que sean ocho.
     ap.add_argument("--tope-hueco", type=float, default=15.0,
                     help="%% del saldo que se puede perder si TODO salta por encima de su stop")
-    ap.add_argument("--hueco-peor", type=float, default=34.0,
-                    help="el peor hueco a suponer, en pips (34 es el peor medido en 11 semanas)")
-    # El nocional se mira y se dice, pero no corta: a 60x de tope la guarda que manda es la de
-    # arriba. Se deja porque un nocional disparado avisa de que algun stop salio absurdamente
-    # estrecho, y eso es un fallo del grabador que hay que ver.
+    # EL TOPE POR POSICION VA APARTE Y NO SE DEDUCE DEL DE CARTERA. Cuando se deducia dividiendo
+    # el presupuesto entre el numero de posiciones, subir el tope de posiciones apretaba el de
+    # cada una y empezaba a rechazar stops normales de 7 pips. Son dos preguntas distintas:
+    # cuanto aguanta la cuenta, y cuanto puede pesar una sola operacion dentro de ella.
+    ap.add_argument("--tope-hueco-posicion", type=float, default=2.0,
+                    help="%% del saldo que puede perder UNA sola posicion en un hueco")
+    # DIEZ PIPS, Y SALE DE MEDIRLO. Sobre 66.982 saltos entre velas de 5m DENTRO de la sesion en
+    # los cuatro pares: mediana 0,20 · p90 0,80 · p99 2,90 · p99,9 10,10 · peor 36,50.
+    #
+    # Se coge el p99,9 —uno de cada mil— porque con cientos de posiciones eso pasa varias veces
+    # y es lo que hay que aguantar. El peor (36,5 en GBPJPY) es uno entre 67.000: protegerse de
+    # el significaria no operar.
+    #
+    # Y NO SE USA EL HUECO DEL FIN DE SEMANA (34 pips), que es otra cosa: solo lo cruzan 2 de
+    # cada 440 operaciones, porque estas cierran en menos de cinco horas. Suponerlo en todas
+    # rechazaba TODAS las señales de `video`, cuyos stops son de 1,8-1,9 pips.
+    ap.add_argument("--hueco-peor", type=float, default=10.0,
+                    help="hueco a suponer, en pips (10 = p99,9 medido entre velas de 5m)")
+    # El nocional solo AVISA. La guarda que acota la perdida es la de hueco; esta esta para que
+    # el apalancamiento acumulado se vea en el log en vez de pasar desapercibido.
     ap.add_argument("--tope-nocional", type=float, default=60.0,
-                    help="exposicion maxima en veces el saldo (tripwire, no la guarda principal)")
+                    help="a partir de aqui se AVISA de la exposicion. No corta: no es la guarda")
     ap.add_argument("--tope-perdida-dia", type=float, default=3.0,
                     help="%% del saldo perdido en un dia a partir del cual no se abre nada mas")
     ap.add_argument("--parar", default="",
@@ -372,8 +465,17 @@ def main():
         with open(args.estado, encoding="utf-8") as f:
             est = json.load(f)
 
-    with open(args.registro, encoding="utf-8") as f:
-        reg = json.load(f)
+    registros = []
+    for spec in args.registro:
+        etiqueta, _, ruta = spec.partition(":")
+        # En Windows la ruta lleva dos puntos ("C:/..."), asi que solo se parte por el PRIMERO
+        # y aun asi hay que distinguir "video:C:/x" de "C:/x" a secas.
+        if not ruta or (len(etiqueta) == 1 and etiqueta.isalpha()):
+            etiqueta, ruta = "", spec
+        if not os.path.exists(ruta):
+            raise SystemExit(f"no existe el registro {ruta}")
+        with open(ruta, encoding="utf-8") as f:
+            registros.append((etiqueta, ruta, json.load(f)))
 
     if not mt5.initialize():
         raise SystemExit(f"no se pudo conectar con el terminal: {mt5.last_error()}")
@@ -434,84 +536,115 @@ def main():
 
     ahora = int(time.time())
     riesgo_dinero = cuenta.balance * args.riesgo / 100
-    poner, saltar = que_hacer(
-        reg.get("pendientes", []), ya_puestas, ahora, args.tope_posiciones,
-        len(ordenes) + len(posiciones),
-    )
-
-    for ident, motivo in saltar:
-        print(f"   - {ident:<28} {motivo}")
-
+    tope = cuenta.balance * args.tope_hueco / 100
+    suya = cuenta.balance * args.tope_hueco_posicion / 100
     puestas = 0
-    for p in poner:
-        ident = identidad(p["par"], p["tSeñal"])
-        sym = simbolo_broker(p["par"], vivos)
-        if sym is None:
-            print(f"   ! {ident:<28} el broker no tiene ese par")
-            continue
-        mt5.symbol_select(sym, True)
-        info = mt5.symbol_info(sym)
-        if info is None:
-            print(f"   ! {ident:<28} sin informacion del simbolo")
-            continue
-        riesgo_precio = abs(p["entrada"] - p["stop"])
-        lotes, motivo = lote(
-            riesgo_dinero, riesgo_precio, info.trade_tick_size, info.trade_tick_value,
-            info.volume_step, info.volume_min, info.volume_max,
+    # `vivas` cuenta lo abierto A MEDIDA QUE SE PONE, no solo al empezar. Sin esto el segundo
+    # registro creeria que el cupo sigue como estaba y se pasaria del tope de posiciones.
+    vivas = len(ordenes) + len(posiciones)
+
+    for etiqueta, ruta, reg in registros:
+        pendientes = reg.get("pendientes", [])
+        print(f"\n-- {etiqueta or os.path.basename(ruta)}: {len(pendientes)} pendiente(s) "
+              f"en el registro")
+        poner, saltar = que_hacer(
+            pendientes, ya_puestas, ahora, args.tope_posiciones, vivas, etiqueta,
         )
-        if lotes <= 0:
-            print(f"   ! {ident:<28} {motivo}")
-            continue
-        pips = riesgo_precio / (0.01 if "JPY" in sym else 0.0001)
-        exp = nocional(p["entrada"], riesgo_dinero, riesgo_precio)
-        en_hueco = riesgo_hueco(riesgo_dinero, pips, args.hueco_peor)
+        for ident, motivo in saltar:
+            print(f"   - {ident:<28} {motivo}")
+        for p in poner:
+            ident = identidad(p["par"], p["tSeñal"], etiqueta)
+            sym = simbolo_broker(p["par"], vivos)
+            if sym is None:
+                print(f"   ! {ident:<28} el broker no tiene ese par")
+                continue
+            mt5.symbol_select(sym, True)
+            info = mt5.symbol_info(sym)
+            if info is None:
+                print(f"   ! {ident:<28} sin informacion del simbolo")
+                continue
+            riesgo_precio = abs(p["entrada"] - p["stop"])
+            lotes, motivo = lote(
+                riesgo_dinero, riesgo_precio, info.trade_tick_size, info.trade_tick_value,
+                info.volume_step, info.volume_min, info.volume_max,
+            )
+            if lotes <= 0:
+                print(f"   ! {ident:<28} {motivo}")
+                continue
+            pips = riesgo_precio / (0.01 if "JPY" in sym else 0.0001)
+            exp = nocional(p["entrada"], riesgo_dinero, riesgo_precio)
+            en_hueco = riesgo_hueco(riesgo_dinero, pips, args.hueco_peor)
 
-        # NINGUNA POSICION SOLA SE LLEVA MAS QUE SU PARTE. Sin esto, una señal con el stop
-        # absurdamente estrecho pasa la guarda de cartera solo por ser la primera: con 2 pips de
-        # stop son 85 en un hueco, el 8,5% de la cuenta, y la suma todavia no habia llegado al
-        # tope. El reparto es el obvio —el presupuesto entre el numero de posiciones— porque
-        # cualquier otro seria dejar que la primera en llegar se quede con todo.
-        tope = cuenta.balance * args.tope_hueco / 100
-        suya = tope / max(1, args.tope_posiciones)
-        if en_hueco > suya:
-            print(f"   - {ident:<28} ella sola arriesga {en_hueco:.2f} en un hueco y le tocan "
-                  f"{suya:.2f} · stop de {pips:.1f}p")
-            continue
+            # NINGUNA POSICION SOLA SE LLEVA MAS QUE SU PARTE. Sin esto, una señal con el stop
+            # absurdamente estrecho pasa la guarda de cartera solo por ser la primera: con 2 pips de
+            # stop son 85 en un hueco, el 8,5% de la cuenta, y la suma todavia no habia llegado al
+            # tope. El reparto es el obvio —el presupuesto entre el numero de posiciones— porque
+            # cualquier otro seria dejar que la primera en llegar se quede con todo.
+            if en_hueco > suya:
+                print(f"   - {ident:<28} ella sola arriesga {en_hueco:.2f} en un hueco y le tocan "
+                      f"{suya:.2f} · stop de {pips:.1f}p")
+                continue
 
-        # LA GUARDA DE CARTERA: que perderiamos si TODO lo abierto saltara su stop a la vez.
-        if (arriesgado + en_hueco) > tope:
-            print(f"   - {ident:<28} tope de hueco: {arriesgado + en_hueco:.2f} pasaria de "
-                  f"{tope:.2f} ({args.tope_hueco}% del saldo con huecos de {args.hueco_peor}p)")
-            continue
-        # Y el nocional como alambre de aviso. Si salta, casi seguro que un stop salio absurdo.
-        if (expuesto + exp) > cuenta.balance * args.tope_nocional:
-            print(f"   - {ident:<28} tope de exposicion: {(expuesto + exp) / cuenta.balance:.1f}x "
-                  f"pasaria de {args.tope_nocional}x · stop de {pips:.1f}p, mira si es un fallo")
-            continue
+            # LA GUARDA DE CARTERA: que perderiamos si TODO lo abierto saltara su stop a la vez.
+            if (arriesgado + en_hueco) > tope:
+                print(f"   - {ident:<28} tope de hueco: {arriesgado + en_hueco:.2f} pasaria de "
+                      f"{tope:.2f} ({args.tope_hueco}% del saldo con huecos de {args.hueco_peor}p)")
+                continue
+            # EL NOCIONAL AVISA, NO CORTA. Lo puse cortando y bloqueaba a `video` en la tercera
+            # señal: sus stops de 1,8 pips dan 20-29x de exposicion CADA UNO, y eso no es un
+            # fallo sino el colchon 0,1 que la estrategia lleva a proposito. Bloquearlo era
+            # decidir por el grabador desde aqui, y ademas escondia justo los datos que se
+            # quieren medir.
+            #
+            # Lo que acota la perdida es la guarda de hueco de arriba, no esta. Y si el
+            # apalancamiento llegara a no caber, el broker rechaza por margen y se ve en el log
+            # —que tambien es un dato: que esta estrategia necesita mas cuenta de la que hay.
+            if (expuesto + exp) > cuenta.balance * args.tope_nocional:
+                print(f"   ojo  {ident:<26} exposicion acumulada "
+                      f"{(expuesto + exp) / cuenta.balance:.0f}x, stop de {pips:.1f}p")
 
-        ok, ticket, nota = poner_orden(sym, info, p, lotes, p["caducaEn"], args.enserio)
-        linea = (f"   + {ident:<28} {p['direccion']:<6} {lotes} lotes · stop {pips:.1f}p · "
-                 f"riesgo {riesgo_dinero:.2f} · {exp / cuenta.balance:.1f}x · "
-                 f"en hueco {en_hueco:.2f}")
-        if not ok:
-            print(f"{linea}  -> {nota}")
-            continue
-        print(f"{linea}  -> {nota or f'ticket {ticket}'}")
-        # EL ACUMULADO SUBE TAMBIEN EN SECO. Si solo subiera al mandar de verdad, el simulacro
-        # mediria cada orden contra una cartera vacia y diria que caben todas: acepto USDJPY a
-        # 8,5x y despues GBPJPY a 14,8x sin sumarlos, cuando juntas pasan del tope. Un simulacro
-        # que no enseña lo que va a pasar es peor que no tenerlo, porque se cree.
-        expuesto += exp
-        arriesgado += en_hueco
-        puestas += 1
-        if args.enserio:
-            est["puestas"][ident] = {
-                "ticket": ticket, "par": p["par"], "direccion": p["direccion"],
-                "entrada_pedida": p["entrada"], "stop": p["stop"], "objetivo": p["objetivo"],
-                "lotes": lotes, "riesgo_pedido": riesgo_dinero,
-                "puesta": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                "tSeñal": p["tSeñal"],
-            }
+            # MARGEN: que un stop-out no arruine la medida.
+            #
+            # Con stops de 1,8 pips el nocional se dispara —10 posiciones de `video` son ~250x la
+            # cuenta— y aunque el riesgo real siga acotado por los stops, el BROKER mira el
+            # margen. Si la cuenta se queda sin el, XM cierra posiciones a la fuerza, y una
+            # operacion cerrada por margen no mide nada de la estrategia: mide el tamaño de la
+            # cuenta. Se para antes, dejando la mitad del margen libre.
+            margen = mt5.order_calc_margin(
+                mt5.ORDER_TYPE_BUY if p["direccion"] == "LARGO" else mt5.ORDER_TYPE_SELL,
+                sym, lotes, p["entrada"],
+            )
+            if margen is not None and margen > cuenta.margin_free * 0.5:
+                print(f"   - {ident:<28} margen: pide {margen:.2f} y libre quedan "
+                      f"{cuenta.margin_free:.2f}. La cuenta no da para mas a la vez.")
+                continue
+
+            ok, ticket, nota = poner_orden(
+                sym, info, p, lotes, p["caducaEn"], args.enserio, ident)
+            linea = (f"   + {ident:<28} {p['direccion']:<6} {lotes} lotes · stop {pips:.1f}p · "
+                     f"riesgo {riesgo_dinero:.2f} · {exp / cuenta.balance:.1f}x · "
+                     f"en hueco {en_hueco:.2f}")
+            if not ok:
+                print(f"{linea}  -> {nota}")
+                continue
+            print(f"{linea}  -> {nota or f'ticket {ticket}'}")
+            # EL ACUMULADO SUBE TAMBIEN EN SECO. Si solo subiera al mandar de verdad, el simulacro
+            # mediria cada orden contra una cartera vacia y diria que caben todas: acepto USDJPY a
+            # 8,5x y despues GBPJPY a 14,8x sin sumarlos, cuando juntas pasan del tope. Un simulacro
+            # que no enseña lo que va a pasar es peor que no tenerlo, porque se cree.
+            expuesto += exp
+            arriesgado += en_hueco
+            puestas += 1
+            vivas += 1
+            ya_puestas.add(ident)
+            if args.enserio:
+                est["puestas"][ident] = {
+                    "ticket": ticket, "par": p["par"], "direccion": p["direccion"],
+                    "entrada_pedida": p["entrada"], "stop": p["stop"], "objetivo": p["objetivo"],
+                    "lotes": lotes, "riesgo_pedido": riesgo_dinero,
+                    "puesta": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    "tSeñal": p["tSeñal"],
+                }
 
     # ---- Lo que el broker YA lleno: el dato por el que existe todo esto ----------------------
     #
@@ -542,14 +675,7 @@ def main():
         with open(args.estado, "w", encoding="utf-8") as f:
             json.dump(est, f, indent=2)
 
-    lls = est.get("llenados", [])
-    if lls:
-        malos = [x for x in lls if x["desliz_pips"] > 0]
-        medio = sum(x["desliz_pips"] for x in lls) / len(lls)
-        print(f"\nLLENADOS: {len(lls)} · desliz medio {medio:+.2f} pips · "
-              f"{len(malos)} peor que el limite pedido")
-        print(f"Para pasar a dinero real hacen falta ~300 con esperanza positiva al coste real. "
-              f"Llevas {len(lls)}.")
+    informe_datos(est, cuenta)
 
     print(f"\n{puestas} orden(es) puesta(s)." if args.enserio
           else "\nNada mandado: faltaba --enserio.")

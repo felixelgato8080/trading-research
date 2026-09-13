@@ -359,9 +359,18 @@ muestra, y el 78% del resultado en las horas de peor spread. Está porque **es m
 de medida que el muestreador**: una orden real mide el coste de ESA operación (a qué precio
 llenó contra el que pidió, cuánto deslizó) en vez de muestrear y esperar acertar el momento.
 
-**El listón para dinero real se fijó ANTES de escribirlo**, que es la única forma de que
-signifique algo: **~300 operaciones ejecutadas en demo, esperanza positiva con el coste real de
-los llenados, y que aguante partida por mitades del calendario y par a par.**
+**No hay meta ni umbral.** Se habló de fijar un listón de ~300 operaciones para pasar a real y
+**Felix lo quitó el 13 sep**: *"no quiero ningún objetivo, solo quiero data para ver cómo va la
+estrategia, practicarlo en vivo con la demo y cómo mejorarla"*. El informe da números —llenados,
+desliz, cerradas por estrategia y por par— y ningún veredicto. Si alguien vuelve a meter un
+umbral en la salida, está desobedeciendo una instrucción explícita.
+
+**Ejecutan los DOS registros**, `video` y `afinado`, en una sola llamada. En una sola y no una
+por estrategia porque las guardas tienen que ver la cuenta entera: dos ejecuciones separadas se
+creerían cada una sola en el mundo y la cuenta acabaría con el doble de posiciones y el doble de
+riesgo sin que ninguna hiciera nada mal. La identidad de cada señal lleva la etiqueta delante
+(`video:USDJPY:1789…`) porque las dos estrategias pueden dar la misma vela y el mismo par, y son
+operaciones distintas: el colchón del stop es 0,1 en una y 1 en la otra.
 
 Las señales NO se calculan ahí. Se leen del registro. En cuanto haya dos sitios que calculen la
 señal divergen, y el día que lo hagan nadie se entera porque los dos "funcionan".
@@ -371,12 +380,23 @@ señal divergen, y el día que lo hagan nadie se entera porque los dos "funciona
 - **Demo o nada.** Se comprueba `trade_mode` y **no hay bandera que lo desactive**. Si algún día
   hace falta operar en real, se cambia la función a mano y se ve en el diff.
 - Sin `--enserio` no manda nada. El modo por defecto es decir lo que haría.
-- **El tope que manda es el RIESGO EN HUECO, no el nocional.** El nocional asusta —5 de riesgo
-  con stop de 9 pips son 8,5x la cuenta— pero mientras el stop funcione se pierde 5. Lo que
-  arruina es el hueco: con el peor medido (34 pips) cada posición cuesta ~19 en vez de 5, y los
-  cruces del yen saltan juntos. Tope: 15% del saldo con todo abierto a la vez.
-- **Ninguna posición sola se lleva más que su parte** del presupuesto. Sin esto, una señal con
-  stop de 2 pips pasa solo por llegar la primera: son 85 en un hueco, el 8,5% de la cuenta.
+- **El tope que manda es el RIESGO EN HUECO, no el nocional.** El nocional asusta pero mientras
+  el stop funcione se pierde lo previsto. Lo que arruina es el hueco. **Medido** sobre 66.982
+  saltos entre velas de 5m dentro de la sesión: mediana 0,20 pips · p90 0,80 · p99 2,90 ·
+  **p99,9 10,10** · peor 36,50. Se supone el p99,9, que con cientos de posiciones pasa varias
+  veces. Tope: 15% del saldo si TODO salta a la vez — los cruces del yen van juntos.
+- **No se usa el hueco del fin de semana (34 pips)**: solo lo cruzan 2 de cada 440 operaciones,
+  porque cierran en menos de cinco horas. Suponerlo en todas rechazaba **todas** las señales de
+  `video`, cuyos stops son de 1,8-1,9 pips.
+- **Ninguna posición sola pasa del 2% del saldo en un hueco**, y ese tope va aparte del de
+  cartera. Cuando se deducía dividiendo el presupuesto entre el número de posiciones, subir el
+  tope de posiciones apretaba el de cada una y empezaba a rechazar stops normales de 7 pips.
+- **El nocional AVISA, no corta.** Cortando bloqueaba a `video` en su tercera señal: sus stops de
+  1,8 pips dan 20-29x de exposición cada uno, y eso es el colchón 0,1 que la estrategia lleva a
+  propósito, no un fallo. Bloquearlo escondía justo los datos que se quieren medir.
+- **Guarda de margen:** no se abre si el margen pedido se come más de la mitad del libre. Diez
+  posiciones de `video` son ~250x la cuenta; una operación cerrada por margin call no mide la
+  estrategia, mide el tamaño de la cuenta.
 - El lote redondea **hacia abajo** y se niega a subir al mínimo del broker, diciendo cuánto
   arriesgaría de verdad. Pasarse del riesgo pedido no es un redondeo: es otra apuesta.
 - Tope de posiciones, tope de pérdida diaria leído del historial **del broker** (no del nuestro:
