@@ -10,8 +10,8 @@ silencio: cuantos lotes, cuanta exposicion, y si una señal ya puesta se vuelve 
 import unittest
 
 from ejecutor import (
-    divisas, exposicion_divisas, identidad, lote, nocional, peaje,
-    perdida_del_dia, que_hacer, riesgo_hueco, simbolo_broker,
+    divisas, exposicion_divisas, identidad, limitada_valida, lote, nocional,
+    peaje, perdida_del_dia, que_hacer, riesgo_hueco, simbolo_broker,
 )
 
 # Los de la cuenta de verdad, leidos del terminal el 12 sep: XM, cruces JPY, 3 decimales.
@@ -109,6 +109,39 @@ class RiesgoEnHueco(unittest.TestCase):
 
     def test_sin_stop_no_se_inventa_nada(self):
         self.assertEqual(riesgo_hueco(5.0, 0.0, 34.0), 5.0)
+
+
+class LimitadaValida(unittest.TestCase):
+    # Mercado en 153,000 / 153,020 (bid/ask).
+    BID, ASK = 153.000, 153.020
+
+    def test_una_compra_limitada_va_por_debajo_del_mercado(self):
+        vale, _ = limitada_valida("LARGO", 152.900, self.BID, self.ASK)
+        self.assertTrue(vale)
+
+    def test_EL_PRECIO_YA_SE_PASO_hacia_abajo(self):
+        # Comprar a 153,10 cuando piden 153,02 no es una limitada: el broker la rechaza con
+        # 10015 y, sin esta comprobacion, se reintentaria cada 5 minutos durante 5 horas.
+        vale, porque = limitada_valida("LARGO", 153.100, self.BID, self.ASK)
+        self.assertFalse(vale)
+        self.assertIn("ya cayo", porque)
+
+    def test_una_venta_limitada_va_por_encima(self):
+        vale, _ = limitada_valida("CORTO", 153.100, self.BID, self.ASK)
+        self.assertTrue(vale)
+
+    def test_EL_PRECIO_YA_SE_PASO_hacia_arriba(self):
+        vale, porque = limitada_valida("CORTO", 152.900, self.BID, self.ASK)
+        self.assertFalse(vale)
+        self.assertIn("ya subio", porque)
+
+    def test_justo_en_el_precio_no_vale(self):
+        # Pegado al mercado tampoco es una limitada, y el broker lo trata igual.
+        self.assertFalse(limitada_valida("LARGO", self.ASK, self.BID, self.ASK)[0])
+        self.assertFalse(limitada_valida("CORTO", self.BID, self.BID, self.ASK)[0])
+
+    def test_sin_cotizacion_no_se_adivina(self):
+        self.assertFalse(limitada_valida("LARGO", 152.9, 0, 0)[0])
 
 
 class Correlacion(unittest.TestCase):

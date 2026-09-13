@@ -10,3 +10,7 @@ node_modules/
 # la copia de seguridad, y guardarlas duplica cada diff del registro sin anadir informacion.
 # Ademas dejaban el arbol sucio para siempre, porque la tarea local solo commitea el .json.
 registros/*.bak
+
+# Cache de Python. Se regenera solo y ensucia cada diff del ejecutor.
+__pycache__/
+*.pyc

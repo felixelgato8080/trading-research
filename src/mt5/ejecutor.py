@@ -115,6 +115,34 @@ def nocional(precio, riesgo_dinero, riesgo_precio):
     return precio * (riesgo_dinero / riesgo_precio)
 
 
+def limitada_valida(direccion, entrada, bid, ask):
+    """
+    Si una limitada se puede poner o el precio ya se paso de largo.
+
+    Una compra limitada tiene que estar POR DEBAJO del mercado: es una orden que dice "compro si
+    baja hasta aqui". Si el precio ya cayo por debajo, ese nivel esta arriba y la orden no tiene
+    sentido — el broker la rechaza con 10015, precio invalido.
+
+    POR QUE HAY QUE MIRARLO ANTES DE MANDARLA. El grabador decide el nivel mirando velas
+    CERRADAS. Entre la ultima vela cerrada y este instante hay hasta cinco minutos, y el precio
+    puede haberse ido. Ese rechazo no es de formato, asi que no se reintenta con otra variante;
+    pero la señal tampoco se descarta, y volveria a intentarse cada 5 minutos hasta caducar:
+    sesenta rechazos por señal, todos ilegibles, tapando los que si importan.
+
+    Devuelve (vale, motivo).
+    """
+    if bid <= 0 or ask <= 0:
+        return False, "sin cotizacion"
+    if direccion == "LARGO":
+        # Compra limitada: el nivel tiene que quedar por debajo de lo que piden ahora.
+        if entrada >= ask:
+            return False, f"el precio ya cayo: compraria a {entrada} y el mercado pide {ask}"
+    else:
+        if entrada <= bid:
+            return False, f"el precio ya subio: venderia a {entrada} y el mercado da {bid}"
+    return True, ""
+
+
 def riesgo_hueco(riesgo_dinero, stop_pips, hueco_pips):
     """
     Lo que cuesta una posicion si el precio SALTA por encima de su stop.
@@ -322,9 +350,30 @@ def recoger_cerradas(est, dias=14):
         # `profit` ya lleva comision y swap en la moneda de la cuenta: es lo que de verdad
         # cambio el saldo, que es lo unico contra lo que tiene sentido medir el coste.
         beneficio = sum(d.profit + d.commission + d.swap for d in ds)
+        ident = entrada.comment or salida.comment
+        # EL LLENADO DE LAS QUE ABREN Y CIERRAN ENTRE DOS PASADAS.
+        #
+        # El desliz se apunta mirando las posiciones ABIERTAS, pero con stops de 7-9 pips una
+        # operacion puede abrirse y cerrarse dentro de los mismos 5 minutos: no la vemos abierta
+        # nunca, y su llenado —que es el dato por el que existe este fichero— se perderia. El
+        # historial del broker si lo tiene, asi que se recupera de ahi.
+        conocidos = {x["ident"] for x in est.get("llenados", [])}
+        pedido = est.get("puestas", {}).get(ident, {}).get("entrada_pedida")
+        if ident and ident not in conocidos and pedido is not None:
+            largo = entrada.type == mt5.DEAL_TYPE_BUY
+            pip = 0.01 if "JPY" in salida.symbol else 0.0001
+            est.setdefault("llenados", []).append({
+                "ident": ident, "par": salida.symbol,
+                "direccion": "LARGO" if largo else "CORTO",
+                "pedido": pedido, "llenado": entrada.price,
+                "desliz_pips": round((entrada.price - pedido) / pip * (1 if largo else -1), 2),
+                "t": int(entrada.time), "volumen": entrada.volume,
+                "cuando": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "reconstruido": True,
+            })
         nuevas.append({
             "posicion": pid,
-            "ident": entrada.comment or salida.comment,
+            "ident": ident,
             "par": salida.symbol,
             "dia": datetime.fromtimestamp(salida.time, timezone.utc).date().isoformat(),
             "entrada": entrada.price,
@@ -768,6 +817,21 @@ def main():
             # momento en que la medida significa algo: el coste de ESTA operacion, no el de un
             # muestreo cada 30 segundos que quiza cayo en otro minuto.
             tick = mt5.symbol_info_tick(sym)
+            if tick is not None:
+                vale, porque = limitada_valida(p["direccion"], p["entrada"], tick.bid, tick.ask)
+                if not vale:
+                    print(f"   - {ident:<28} {porque}")
+                    # Se apunta como intentada para no volver a probarla cada 5 minutos hasta
+                    # que caduque. La señal no vuelve: el precio ya hizo su recorrido.
+                    if args.enserio:
+                        est["puestas"][ident] = {
+                            "ticket": None, "par": p["par"], "direccion": p["direccion"],
+                            "entrada_pedida": p["entrada"], "stop": p["stop"],
+                            "objetivo": p["objetivo"], "lotes": 0, "riesgo_pedido": 0.0,
+                            "puesta": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                            "tSeñal": p["tSeñal"], "descartada": porque,
+                        }
+                    continue
             spread_pips = None
             pj = None
             if tick is not None and tick.ask > 0 and tick.bid > 0:
