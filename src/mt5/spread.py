@@ -159,6 +159,13 @@ def tomar_muestras(servidor, login, veces, intervalo):
         # Los que faltan se reportan una vez, no doce.
         if k == 0:
             faltan = f
+            # CON EL MERCADO CERRADO NO SE DUERME CUATRO MINUTOS PARA NADA. Si la primera
+            # lectura no dio ni una cotizacion fresca y si dio ticks viejos, el mercado esta
+            # cerrado: los ticks viejos SON la prueba —el terminal sigue sirviendo el ultimo
+            # del viernes— y esperar no va a cambiarlo. Sin esto la tarea tarda cuatro minutos
+            # cada quince durante todo el fin de semana.
+            if not ms and v > 0:
+                break
     return todas, viejos, faltan, repetidos
 
 
