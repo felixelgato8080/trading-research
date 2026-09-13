@@ -526,6 +526,23 @@ def informe_datos(est, cuenta, registros=()):
                 print(f"   {k:<10} {len(v):>4} llenados · desliz medio "
                       f"{sum(v) / len(v):+.2f}p")
 
+    rech = est.get("rechazadas", [])
+    if rech:
+        sp = sorted(x["spread_pips"] for x in rech)
+        pj = sorted(x["peaje"] for x in rech)
+        print(f"{chr(10)}RECHAZADAS POR PEAJE · {len(rech)}")
+        print(f"   spread cuando se rechazaron: mediana {sp[len(sp) // 2]:.2f}p · "
+              f"peor {sp[-1]:.2f}p")
+        print(f"   se llevaban del riesgo: mediana {pj[len(pj) // 2] * 100:.0f}% · "
+              f"peor {pj[-1] * 100:.0f}%")
+        por_est = {}
+        for x in rech:
+            por_est.setdefault(x["ident"].split(":")[0], []).append(x)
+        if len(por_est) > 1:
+            for k, v in sorted(por_est.items()):
+                print(f"   {k:<10}{len(v):>4} rechazadas · stop mediano "
+                      f"{sorted(y['stop_pips'] for y in v)[len(v) // 2]:.1f}p")
+
     if hist:
         gan = [h for h in hist if h["beneficio"] > 0]
         total = sum(h["beneficio"] for h in hist)
@@ -840,6 +857,25 @@ def main():
                 if pj > args.tope_peaje:
                     print(f"   - {ident:<28} peaje: el spread ({spread_pips:.2f}p) se lleva el "
                           f"{pj * 100:.0f}% de un stop de {pips:.1f}p")
+                    # SE APUNTA LO RECHAZADO, CON SU SPREAD. Sin esto no se puede saber despues
+                    # si apretar el filtro fue acierto o error: el registro en papel SI simula
+                    # esas operaciones, asi que cruzando las dos cosas sale lo que habrian hecho
+                    # al coste real. Rechazar a ciegas convierte el filtro en un acto de fe.
+                    if args.enserio:
+                        est.setdefault("rechazadas", []).append({
+                            "ident": ident, "par": p["par"], "direccion": p["direccion"],
+                            "entrada": p["entrada"], "stop_pips": round(pips, 2),
+                            "spread_pips": round(spread_pips, 2), "peaje": round(pj, 3),
+                            "t": int(time.time()), "tSeñal": p["tSeñal"],
+                            "motivo": "peaje",
+                        })
+                        est["puestas"][ident] = {
+                            "ticket": None, "par": p["par"], "direccion": p["direccion"],
+                            "entrada_pedida": p["entrada"], "stop": p["stop"],
+                            "objetivo": p["objetivo"], "lotes": 0, "riesgo_pedido": 0.0,
+                            "puesta": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                            "tSeñal": p["tSeñal"], "descartada": f"peaje {pj:.2f}",
+                        }
                     continue
 
             # CORRELACION: cuatro cruces del yen al mismo lado son UNA apuesta puesta cuatro
@@ -943,7 +979,10 @@ def main():
     # es la peor: seria dinero moviendose sin que este registro lo sepa.
     vivos_broker = {o.comment for o in nuestras_ordenes()} | {q.comment for q in nuestras_posiciones()}
     cerrados = {h.get("ident") for h in est.get("historial", [])}
-    fantasmas = [k for k in est["puestas"] if k not in vivos_broker and k not in cerrados]
+    fantasmas = [
+        k for k, v in est["puestas"].items()
+        if k not in vivos_broker and k not in cerrados and not v.get("descartada")
+    ]
     huerfanas = [k for k in vivos_broker if k and k not in est["puestas"]]
     if fantasmas:
         print(f"\nOJO · {len(fantasmas)} apuntada(s) que el broker no tiene ni cerro: "
