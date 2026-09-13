@@ -387,7 +387,33 @@ def poner_orden(sym, info, p, lotes, caduca, enserio, ident):
     return False, None, ultimo
 
 
-def informe_datos(est, cuenta):
+def cobertura(registros, est):
+    """
+    Cuantas operaciones del PAPEL llegaron a ejecutarse de verdad.
+
+    POR QUE HACE FALTA MIRAR ESTO. El grabador se pone al dia solo cuando el portatil vuelve de
+    dormir, pero en una sola pasada crea la señal Y la abre si el precio ya paso por su nivel.
+    Cuando eso ocurre, la señal nunca aparece en `pendientes`, y el ejecutor —que solo mira
+    pendientes— no la ve jamas. Se pierde en silencio.
+
+    No es un fallo que arreglar desde aqui: es el precio de tener el grabador cada 15 minutos en
+    una maquina que se apaga. Lo que no puede pasar es que no se sepa cuanto se esta perdiendo,
+    porque entonces se compararia el papel con lo ejecutado creyendo que son la misma muestra.
+    """
+    conocidas = set(est.get("puestas", {}).keys())
+    conocidas |= {h.get("ident") for h in est.get("historial", [])}
+    filas = []
+    for etiqueta, _ruta, reg in registros:
+        enPapel = reg.get("cerradas", []) + reg.get("abiertas", [])
+        if not enPapel:
+            continue
+        idents = [identidad(c["par"], c["tSeñal"], etiqueta) for c in enPapel]
+        hechas = [i for i in idents if i in conocidas]
+        filas.append((etiqueta, len(idents), len(hechas)))
+    return filas
+
+
+def informe_datos(est, cuenta, registros=()):
     """
     Lo que llevamos medido. Sin metas y sin veredictos: numeros.
 
@@ -396,6 +422,18 @@ def informe_datos(est, cuenta):
     """
     lls = est.get("llenados", [])
     hist = est.get("historial", [])
+
+    filas = cobertura(registros, est)
+    # Se enseña aunque no haya nada ejecutado todavia: un 0 de 40 el lunes por la mañana dice
+    # mas que cualquier otra linea del informe.
+    if filas:
+        print(f"\nCOBERTURA · cuanto del papel llego a ejecutarse")
+        for etiqueta, papel, hechas in filas:
+            pct = hechas / papel * 100 if papel else 0
+            print(f"   {etiqueta:<10}{hechas:>4} de {papel:<4} ({pct:>3.0f}%)"
+                  + ("   <- lo que falta se lleno mientras el equipo no miraba"
+                     if pct < 80 else ""))
+
     if not lls and not hist:
         return
 
@@ -819,7 +857,7 @@ def main():
               f"apuntadas: {', '.join(sorted(huerfanas)[:5])}")
         print("   Eso es dinero moviendose sin que este registro lo sepa. Mirar antes de seguir.")
 
-    informe_datos(est, cuenta)
+    informe_datos(est, cuenta, registros)
 
     print(f"\n{puestas} orden(es) puesta(s)." if args.enserio
           else "\nNada mandado: faltaba --enserio.")
