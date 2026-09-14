@@ -12,6 +12,7 @@ import unittest
 from ejecutor import (
     divisas, exposicion_divisas, identidad, limitada_valida, lote, mercado_valido, nocional,
     peaje, perdida_del_dia, que_hacer, riesgo_hueco, senal_fresca, simbolo_broker,
+    desfase_reloj, tick_utilizable,
 )
 from simbolos import operables_de
 
@@ -382,3 +383,67 @@ class OrdenAMercado(unittest.TestCase):
         # La limitada solo comprueba que el nivel siga al lado correcto; no le importa la edad,
         # porque el precio que conseguira es el que pidio. Esta prueba fija esa diferencia.
         self.assertTrue(limitada_valida("LARGO", 99.0, 100.0, 100.2)[0])
+
+
+class Tick:
+    """Lo minimo que `tick_utilizable` mira de una cotizacion."""
+
+    def __init__(self, bid, ask, t):
+        self.bid, self.ask, self.time = bid, ask, t
+
+
+class MedirAntesDeDecidir(unittest.TestCase):
+    """
+    Que ninguna operacion se caiga por un fallo de MEDIDA en vez de por su coste.
+
+    Es la diferencia entre "esta operacion es cara" y "no he podido saber si lo es". La primera
+    es una decision; la segunda es un fallo disfrazado de decision, y es la que hay que evitar.
+    """
+
+    # El servidor del broker va en UTC+3.
+    DESFASE = 3 * 3600
+
+    def test_el_desfase_se_deduce_del_tick(self):
+        # Sin esto, TODO tick pareceria tener tres horas y nada pasaria nunca la frescura.
+        ahora = 1_000_000
+        self.assertEqual(desfase_reloj(ahora + 3 * 3600, ahora), 3 * 3600)
+        self.assertEqual(desfase_reloj(ahora, ahora), 0)
+        # Hay husos a :30, y por eso se redondea a la media hora y no a la hora.
+        self.assertEqual(desfase_reloj(ahora + 5 * 3600 + 1800, ahora), 5 * 3600 + 1800)
+
+    def test_un_tick_de_ahora_vale(self):
+        ahora = 1_000_000
+        vale, edad, _ = tick_utilizable(Tick(1.1, 1.1002, ahora + self.DESFASE), self.DESFASE, ahora)
+        self.assertTrue(vale)
+        self.assertLess(abs(edad), 1)
+
+    def test_EL_TICK_DEL_VIERNES_NO_VALE_PARA_MEDIR(self):
+        # Es el caso que importa: con el mercado cerrado MT5 sigue devolviendo el ultimo tick, y
+        # ese lleva el spread de cierre, que es el peor de la semana. Filtrar por peaje contra el
+        # rechazaria operaciones por un coste que no es el suyo.
+        ahora = 1_000_000
+        viernes = ahora - 48 * 3600
+        vale, edad, motivo = tick_utilizable(Tick(1.1, 1.1050, viernes + self.DESFASE),
+                                             self.DESFASE, ahora)
+        self.assertFalse(vale)
+        self.assertGreater(edad, 47 * 3600)
+        self.assertIn("cerrado", motivo)
+
+    def test_sin_cotizacion_tampoco_vale(self):
+        ahora = 1_000_000
+        self.assertFalse(tick_utilizable(None, 0, ahora)[0])
+        self.assertFalse(tick_utilizable(Tick(0, 0, ahora), 0, ahora)[0])
+
+    def test_el_margen_de_frescura_se_puede_pedir(self):
+        ahora = 1_000_000
+        t = Tick(1.1, 1.1002, ahora - 120 + self.DESFASE)
+        self.assertTrue(tick_utilizable(t, self.DESFASE, ahora, max_edad=180)[0])
+        self.assertFalse(tick_utilizable(t, self.DESFASE, ahora, max_edad=60)[0])
+
+    def test_sin_corregir_el_desfase_ningun_tick_pasaria(self):
+        # La prueba de que el desfase no es un adorno: el mismo tick fresco, leido sin corregir,
+        # parece tener tres horas y se descartaria.
+        ahora = 1_000_000
+        t = Tick(1.1, 1.1002, ahora + self.DESFASE)
+        self.assertTrue(tick_utilizable(t, self.DESFASE, ahora)[0])
+        self.assertFalse(tick_utilizable(t, 0, ahora)[0])

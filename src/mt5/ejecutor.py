@@ -205,6 +205,46 @@ def senal_fresca(t_senal, ahora_seg, max_segundos):
     return True, ""
 
 
+def desfase_reloj(tick_time, ahora_seg):
+    """
+    Cuantos segundos va el reloj del servidor por delante de UTC, deducido de un tick.
+
+    MT5 devuelve `tick.time` con la hora del SERVIDOR, no con UTC: XM va en UTC+3. Sin corregirlo,
+    TODO tick parece tener tres horas de antiguedad y cualquier comprobacion de frescura daria
+    siempre que no. Se redondea a la media hora porque hay husos a :30 y porque el tick puede
+    llevar unos segundos.
+
+    Es el mismo fallo que ya aparecio tres veces en este proyecto —en el informe de spread, en el
+    exportador de velas y en el historial de operaciones—, asi que aqui se deduce y no se supone.
+    """
+    return round((tick_time - ahora_seg) / 1800.0) * 1800
+
+
+def tick_utilizable(tick, desfase, ahora_seg, max_edad=180):
+    """
+    Si la cotizacion sirve para MEDIR, o es el ultimo tick de un mercado cerrado.
+
+    POR QUE IMPORTA, y es justo lo que se quiere evitar: con el mercado cerrado el terminal sigue
+    devolviendo el tick del viernes, y ese lleva el spread de cierre, que es el peor de la semana.
+    Filtrar por peaje contra ese numero rechaza operaciones por un coste que no es el suyo.
+
+    Devuelve (vale, edad_segundos, motivo). Cuando no vale, quien llama NO debe usar su spread
+    para decidir: no es que la operacion sea cara, es que no se ha podido medir.
+    """
+    if tick is None or tick.bid <= 0 or tick.ask <= 0:
+        return False, None, "sin cotizacion"
+    edad = ahora_seg - (float(tick.time) - desfase)
+    if edad > max_edad:
+        return False, edad, f"la cotizacion tiene {edad / 60:.0f} min: el mercado parece cerrado"
+    # UNA COTIZACION DEL FUTURO NO ES FRESCA, ES UN RELOJ MAL PUESTO. Sin esta rama, un tick con
+    # el desfase sin corregir sale con edad NEGATIVA y pasa la comprobacion tan campante: la
+    # guarda parece funcionar y no comprueba nada. Lo encontro su propia prueba.
+    if edad < -max_edad:
+        return False, edad, (f"la cotizacion viene {-edad / 60:.0f} min del futuro: el desfase "
+                             "del reloj del servidor esta mal")
+    return True, edad, ""
+
+
 def riesgo_hueco(riesgo_dinero, stop_pips, hueco_pips):
     """
     Lo que cuesta una posicion si el precio SALTA por encima de su stop.
@@ -924,6 +964,18 @@ def main():
     _todos = mt5.symbols_get() or []
     vivos = {s.name for s in _todos}
     operables = operables_de(_todos)
+    # SI NO HAY NINGUNO OPERABLE, ALGO VA MAL Y NO SE ADIVINA.
+    #
+    # `symbols_get` puede devolver una lista parcial mientras el terminal arranca —visto el 14 sep
+    # tras un apagon— y entonces `simbolo_broker` caeria al respaldo y elegiria el simbolo del
+    # grupo caro, que ademas no se puede operar. El resultado seria rechazar por un peaje que es
+    # el doble del real: una operacion perdida por un fallo de medida, no por su coste.
+    if not operables:
+        raise SystemExit(
+            f"el terminal ofrece {len(vivos)} simbolos y NINGUNO operable. Suele ser que aun "
+            "esta arrancando.\nNo se manda nada: elegir simbolo a ciegas mide el spread del "
+            "grupo equivocado."
+        )
     ordenes = nuestras_ordenes()
     posiciones = nuestras_posiciones()
     puestas_vivas = {o.comment for o in ordenes} | {p.comment for p in posiciones}
@@ -1121,6 +1173,11 @@ def main():
             if sym is None:
                 print(f"   ! {ident:<28} el broker no tiene ese par")
                 continue
+            if sym not in operables:
+                # El respaldo eligio uno que no se puede operar. Su spread es el del otro grupo
+                # —el doble— asi que ni se intenta: rechazar por ESE peaje seria un falso negativo.
+                print(f"   ! {ident:<28} el unico simbolo para ese par ({sym}) no es operable")
+                continue
             mt5.symbol_select(sym, True)
             info = mt5.symbol_info(sym)
             if info is None:
@@ -1132,11 +1189,20 @@ def main():
             #
             # El tick se lee aqui, antes de dimensionar, justo por eso.
             tick = mt5.symbol_info_tick(sym)
+            # ¿SIRVE ESTA COTIZACION PARA MEDIR? Con el mercado cerrado el terminal devuelve el
+            # ultimo tick del viernes, que lleva el spread de cierre —el peor de la semana—.
+            # Filtrar por peaje contra ese numero rechazaria operaciones por un coste que no es
+            # el suyo: seria perder una operacion por un fallo de medida.
+            desfase = desfase_reloj(tick.time, ahora_seg) if tick is not None else 0
+            fresco, edad_tick, porque_tick = tick_utilizable(tick, desfase, ahora_seg)
             a_mercado = p.get("tipo") == "MERCADO"
             entrada_efectiva = p["entrada"]
             if a_mercado:
-                if tick is None:
-                    print(f"   - {ident:<28} sin cotizacion para entrar a mercado")
+                if not fresco:
+                    # A MERCADO SI SE PARA. El precio de entrada y el lote salen de este tick;
+                    # con uno viejo se entraria a un precio que ya no existe y con el tamaño mal.
+                    print(f"   - {ident:<28} {porque_tick}, y a mercado se entra con el precio "
+                          "de ahora")
                     continue
                 fresca, porque = senal_fresca(p["tSeñal"], ahora_seg, args.frescura_mercado)
                 if not fresca:
@@ -1215,7 +1281,13 @@ def main():
                     continue
             spread_pips = None
             pj = None
-            if tick is not None and tick.ask > 0 and tick.bid > 0:
+            if not fresco and not a_mercado:
+                # SE PONE IGUAL, PERO SE DICE. Una limitada tiene el nivel fijado de antemano, asi
+                # que no depende de esta cotizacion; lo unico que se pierde es poder comprobar el
+                # coste. Rechazarla aqui seria exactamente lo que se quiere evitar: una operacion
+                # que no entra porque no se pudo medir, no porque sea cara.
+                print(f"   ojo  {ident:<26} {porque_tick}: se pone sin comprobar el peaje")
+            elif tick is not None:
                 spread_pips = (tick.ask - tick.bid) / (0.01 if "JPY" in sym else 0.0001)
                 pj = peaje(spread_pips, pips)
                 if pj > tope_peaje:
@@ -1228,6 +1300,10 @@ def main():
                     if args.enserio:
                         est.setdefault("rechazadas", []).append({
                             "ident": ident, "par": p["par"], "direccion": p["direccion"],
+                            # EL SIMBOLO Y LA EDAD DEL TICK, para poder comprobar despues que el
+                            # rechazo fue por el coste y no por haber medido el instrumento
+                            # equivocado o una cotizacion rancia.
+                            "simbolo": sym, "edad_tick": None if edad_tick is None else round(edad_tick),
                             "entrada": p["entrada"], "stop_pips": round(pips, 2),
                             "spread_pips": round(spread_pips, 2), "peaje": round(pj, 3),
                             "t": int(time.time()), "tSeñal": p["tSeñal"],
