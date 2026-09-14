@@ -197,7 +197,74 @@ probada, está esperando.
 
 ---
 
+## LA PREDICCION 2, DESPUES DEL CAMBIO DE CUENTA (14 sep, por la tarde)
+
+La de abajo sigue siendo valida como pieza de historia, pero describe una configuracion que YA NO
+CORRE: hablaba de `div-xm-sep40`, un solo registro ejecutando, sobre la cuenta demo 169354542.
+
+Ese mismo dia el terminal cambio a la cuenta **108419791** (XMGlobal-MT5 5, grupo Ultra Low), el
+spread bajo entre un 17% y un 68% segun el par, y con eso se pusieron a ejecutar CUATRO registros
+en vez de uno. Se escribe la prediccion nueva aqui, con fecha, y **no se borra la vieja**: moverla
+seria justo lo que estas secciones existen para impedir.
+
+**Lo que ejecuta ahora** (todo sobre 108419791, demo, riesgo 0,25%, tope 12 posiciones):
+
+| etiqueta | registro | que es | min-stop |
+|---|---|---|---|
+| `sep40` | div-ul-sep40 | divergencias RSI 14, maxSep 40, colchon 2 | 18 p |
+| `ul2` | div-ul2 | lo mismo con maxSep 60 | 12 p |
+| `video` | div-ul-video | la del video, 12 pares, objetivo liquidez | 5 p |
+| `pbv1` | pb-v1 | retroceso del RSI, **entrada a mercado** | 8 p |
+
+**Lo que predice**, medido sobre 31 dias de velas de XM con el spread nuevo y QUITANDO las ideas
+repetidas —que es lo que de verdad se va a operar, no la suma de las cuatro:
+
+| | |
+|---|---|
+| operaciones | **3,66 al dia · ~110 al mes** |
+| esperanza | **entre 0 y +0,15R** |
+| pips/mes | 200-620 |
+
+**La horquilla va deliberadamente por debajo de lo medido, y aqui esta el porque.** El backtest de
+esos 31 dias da +0,217R, pero esos 31 dias son el trimestre bueno: la misma `sep40` que ahi sale a
++0,964R dio **+0,174R sobre 244 dias**. Un factor 5,5 entre la ventana corta y la larga. Aplicarle
+ese mismo descuento al +0,217R deja algo cercano a cero, y eso es lo que hay que esperar.
+
+**Lo que cada una aporta DE PROPIO** (lo que no cogeria otra antes), porque es donde estara la
+respuesta interesante:
+
+| | ops/dia propias | esperanza de esas |
+|---|---|---|
+| `sep40` | 0,78 | +0,964R |
+| `ul2` | 1,20 | +0,238R |
+| `video` | 0,49 | **-0,303R** |
+| `pbv1` | 1,20 | -0,078R |
+
+**Las dos preguntas que este registro existe para contestar:**
+
+1. **¿Aporta algo `video` por su cuenta?** Su parte buena ya la coge `ul2`; lo que añade de propio
+   son sus peores señales. Son 15 operaciones en el backtest, o sea nada, pero el mecanismo es
+   claro. Si en vivo confirma, sale del ejecutor.
+2. **¿El retroceso del RSI funciona a pesar del backtest?** Da -0,240R sin filtro y -0,078R con
+   min-stop 8. Se ejecuta igual, y a proposito: `div-video` tenia un backtest de -0,279R sobre 783
+   operaciones y en vivo lleva **+15,98R con PF 1,46**. Esta es la segunda vez que se pone a correr
+   algo que el backtest desaconseja, y la primera vez el backtest se equivoco.
+
+**Lo que declararia muerto al conjunto:** esperanza negativa sobre 200 operaciones cerradas. A 110
+al mes, unos **dos meses**.
+
+**Lo que NO se va a hacer mientras tanto:** tocar los min-stop, cambiar de pares, o añadir
+variantes. Se midio que aflojar `ul2` de 12 a 8 daria 5,05 ops/dia con mas pips (641 contra 620), y
+aun asi se deja en 12 — porque cambiar la configuracion a mitad convierte el registro en otra cosa
+y hay que volver a empezar a contar. Decision de Felix el 14 sep: *"dejemos todo como esta y
+esperemos los datos"*.
+
+---
+
 ## LA PREDICCION, ESCRITA ANTES DE VERLA (14 sep)
+
+> **Superada por la de arriba.** Describe `div-xm-sep40` sobre la cuenta 169354542, que dejo de
+> correr el mismo dia al cambiar el terminal de cuenta. Se conserva entera.
 
 Lo que sigue es lo que el backtest dice que deberia pasar en vivo. Se escribe AHORA, con fecha,
 para que dentro de dos meses no se pueda mover la porteria.
