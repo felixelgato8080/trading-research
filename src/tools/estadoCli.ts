@@ -254,16 +254,36 @@ function ejecutor(ruta: string): void {
   }
   const e = JSON.parse(readFileSync(ruta, "utf-8")) as {
     puestas?: Record<string, { descartada?: string }>;
+    rechazadas?: Array<{ peaje: number; spread_pips: number; stop_pips: number }>;
     llenados?: Array<{ ident: string; desliz_pips: number; par: string }>;
     historial?: Array<{ par: string; beneficio: number; comision?: number; swap?: number }>;
   };
   const lls = e.llenados ?? [];
   const hist = e.historial ?? [];
   const puestas = Object.values(e.puestas ?? {});
-  const descartadas = puestas.filter((x) => x.descartada).length;
+  // EL MOTIVO IMPORTA MAS QUE EL NUMERO. "Llegamos tarde" y "decidimos no operar" son cosas
+  // opuestas: la primera es un fallo nuestro, la segunda es el filtro haciendo su trabajo.
+  // Meterlas en el mismo saco me hizo leer mal el primer dia de datos reales: di por hecho que
+  // el ejecutor habia llegado tarde a dos señales cuando en realidad las habia rechazado a
+  // proposito, y las dos resultaron perdedoras.
+  const descartadas = puestas.filter((x) => x.descartada);
+  const porPeaje = descartadas.filter((x) => (x.descartada ?? "").startsWith("peaje")).length;
+  const porPrecio = descartadas.length - porPeaje;
 
   console.log("\n\nCUENTA DEMO (MT5)");
-  console.log(`   ordenes puestas ${puestas.length - descartadas} · descartadas por precio ${descartadas}`);
+  console.log(
+    `   ordenes puestas ${puestas.length - descartadas.length}` +
+      ` · rechazadas por peaje ${porPeaje} · llegamos tarde ${porPrecio}`,
+  );
+  const rech = e.rechazadas ?? [];
+  if (rech.length) {
+    const pj = rech.map((x) => x.peaje).sort((a, b) => a - b);
+    console.log(
+      `   al rechazar, el spread se llevaba: mediana ` +
+        `${(pj[Math.floor(pj.length / 2)]! * 100).toFixed(0)}% del riesgo · ` +
+        `peor ${(pj[pj.length - 1]! * 100).toFixed(0)}%`,
+    );
+  }
   if (lls.length) {
     const ds = lls.map((x) => x.desliz_pips).sort((a, b) => a - b);
     const peores = ds.filter((x) => x > 0).length;
