@@ -66,7 +66,7 @@
  */
 import { readFileSync, writeFileSync, existsSync, copyFileSync } from "node:fs";
 import { guardarRegistro } from "../forex/guardar";
-import { leerVelas, type VelasDeFichero } from "../forex/velasFichero";
+import { leerVelas, grupoDeSimbolos, type VelasDeFichero } from "../forex/velasFichero";
 import { velas as bajarVelas, type Vela, type Temporalidad } from "../forex/datos";
 import { agregar } from "../forex/agregar";
 import { rsi } from "../forex/rsi";
@@ -191,9 +191,21 @@ async function main(): Promise<void> {
   // que el objetivo no decide si se gana: decide la forma de la curva. Se elige 1,5R porque con
   // 50% de acierto las rachas malas son cortas, y una estrategia que se abandona en la racha
   // mala tiene esperanza cero por muy buena que sea su aritmetica.
+  // SE DECLARA AQUI Y NO ABAJO. Un `const` usado antes de su linea no avisa al compilar y
+  // revienta al correr; el mismo despiste dejo al ejecutor sin arrancar el 14 sep.
+  const fichero = txt("velas");
+
+  // EL GRUPO DE SIMBOLOS VA DENTRO DE LA FUENTE. El 14 sep la cuenta cambio y con ella el grupo:
+  // `EURUSD` (Standard, 2,20 pips) paso a `EURUSD#` (Ultra Low, 1,30). Las velas son BID, asi que
+  // las dos series difieren medio pip de forma constante. Sin esto, el grabador habria seguido el
+  // mismo registro con precios de otro instrumento, que es justo lo que la guarda existe para
+  // impedir — y lo que ya paso una vez con Yahoo contra XM.
+  const grupo = fichero ? grupoDeSimbolos(
+    JSON.parse(readFileSync(fichero, "utf-8")) as VelasDeFichero,
+  ) : "";
   const ajustes: Ajustes = {
     modo,
-    ...(txt("velas") ? { fuente: "MT5" } : {}),
+    ...(fichero ? { fuente: grupo ? `MT5 ${grupo}` : "MT5" } : {}),
     div: {
       // EL PERIODO SE PUEDE PEDIR. Medido el 14 sep sobre 63 dias de velas de XM con el spread
       // real, 15m/5m y stop minimo de 18 pips, LOS SEIS PERIODOS PROBADOS SON POSITIVOS:
@@ -271,7 +283,6 @@ async function main(): Promise<void> {
   const mayores = new Map<string, Vela[]>();
   let fallos = 0;
   let primerFallo = "";
-  const fichero = txt("velas");
   if (fichero) {
     if (!existsSync(fichero)) {
       console.error(`No existe el fichero de velas ${fichero}. Lo escribe src/mt5/velas.py.`);

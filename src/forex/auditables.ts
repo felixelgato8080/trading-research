@@ -38,6 +38,10 @@ export function deForex(c: CerradaForex): OperacionAuditable {
     tSeñal: c.tSeñal,
     tEntrada: c.tEntrada,
     tSalida: c.tSalida,
+    // A MERCADO SE ENTRA EN LA APERTURA DE LA VELA, y entonces todo su recorrido viene despues
+    // de haber entrado: cerrar en esa misma vela es posible. Con una limitada no se sabe en que
+    // punto de la vela se lleno, asi que cerrar ahi mismo si seria sospechoso.
+    entradaEnApertura: c.tipo === "MERCADO",
   };
 }
 

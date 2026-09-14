@@ -46,6 +46,11 @@ from datetime import datetime, timedelta, timezone, date
 # que poner, cuanto se expone— y esa mitad tiene que poder probarse en una maquina sin terminal
 # de MetaTrader, que es cualquiera que no sea el portatil. Sin esto, las pruebas solo corren
 # donde ya esta todo instalado, que es justo donde no hacen falta.
+# Vive en `simbolos.py` para que el exportador de velas resuelva el nombre EXACTAMENTE igual.
+# Se reexporta desde aqui porque las pruebas y el propio ejecutor ya lo importaban de este modulo.
+from cuenta import exigir_cuenta
+from simbolos import operables_de, simbolo_broker
+
 try:
     import MetaTrader5 as mt5
 except ImportError:  # pragma: no cover - solo en maquinas sin terminal
@@ -60,12 +65,6 @@ MAGIA = 770412
 # ---------------------------------------------------------------------------------------------
 
 
-def simbolo_broker(par_yahoo: str, vivos) -> str | None:
-    """'USDJPY=X' -> el nombre que use este broker ('USDJPY', 'USDJPYm', 'USDJPY.raw'...)."""
-    base = par_yahoo.replace("=X", "")
-    if base in vivos:
-        return base
-    return next((s for s in sorted(vivos) if s.startswith(base)), None)
 
 
 def lote(riesgo_dinero, riesgo_precio, tick_size, tick_value, paso, minimo, maximo):
@@ -273,9 +272,14 @@ def perdida_del_dia(historial, hoy):
 # ---------------------------------------------------------------------------------------------
 
 
-def exigir_demo():
+def exigir_demo(esperada=0):
     """
     La unica guarda que no tiene bandera para desactivarla.
+
+    `esperada` es el login que el terminal DEBE tener. Va aqui, pegado a la comprobacion
+    de demo, porque es la misma pregunta: sobre que cuenta se esta a punto de operar. El
+    14 sep el terminal cambio de cuenta tres veces en una hora y el ejecutor informo de
+    una distinta de la que habia dado las velas dos minutos antes.
 
     Si algun dia hace falta operar en real, se cambia esta funcion a mano y se ve en el diff de
     git. Una variable de entorno o un `--real` seria justo lo que no se quiere: que la diferencia
@@ -307,6 +311,9 @@ def exigir_demo():
             f"ESTA CUENTA NO ES DEMO (trade_mode={c.trade_mode}, {c.server}/{c.login}).\n"
             "El ejecutor solo opera en demo. No se ha mandado nada."
         )
+    mal = exigir_cuenta(c, esperada)
+    if mal:
+        raise SystemExit(mal + "\nNo se ha mandado nada.")
     return c
 
 
@@ -628,6 +635,8 @@ def main():
     ap.add_argument("--registro", action="append", required=True, metavar="ETIQUETA:RUTA",
                     help="p.ej. --registro=video:C:/.../div-video.json (se puede repetir)")
     ap.add_argument("--estado", required=True, help="donde el ejecutor lleva su cuenta")
+    ap.add_argument("--cuenta", type=int, default=0,
+                    help="login que DEBE tener el terminal; si no, no se manda nada")
     ap.add_argument("--enserio", action="store_true",
                     help="mandar de verdad. Sin esto solo dice lo que haria")
     ap.add_argument("--riesgo", type=float, default=0.25,
@@ -720,7 +729,28 @@ def main():
     est = {"version": 1, "puestas": {}, "llenados": [], "historial": []}
     if os.path.exists(args.estado):
         with open(args.estado, encoding="utf-8") as f:
-            est = json.load(f)
+            crudo = f.read()
+        # UN FICHERO VACIO ES UN ARRANQUE; UNO ROTO ES UN PROBLEMA. No es lo mismo.
+        #
+        # Vacio es lo que deja crear el fichero a mano, o una escritura que no llego a empezar:
+        # no hay estado que perder y se arranca limpio. El 14 sep un `ejecutor.json` de 0 bytes
+        # tumbaba el ejecutor entero con un JSONDecodeError, en cada pasada y sin poner nada.
+        #
+        # Roto pero CON contenido es otra cosa: habia estado y se ha perdido. En `puestas` esta
+        # que ordenes se mandaron ya, asi que arrancar de cero desde ahi puede volver a poner
+        # ordenes que ya existen en el broker. Ante eso se para y que lo mire una persona.
+        if crudo.strip():
+            try:
+                est = json.loads(crudo)
+            except json.JSONDecodeError as e:
+                raise SystemExit(
+                    "el estado " + args.estado + " tiene contenido pero no es JSON valido ("
+                    + str(e) + ").\nNO se arranca de cero: ahi esta que ordenes se mandaron ya, "
+                    "y perderlo puede duplicarlas.\nMira el fichero, o su copia .bak, antes de "
+                    "seguir."
+                )
+        else:
+            print("El estado " + args.estado + " esta vacio: se arranca sin nada puesto.")
 
     registros = []
     for spec in args.registro:
@@ -755,13 +785,18 @@ def main():
 
     if not mt5.initialize():
         raise SystemExit(f"no se pudo conectar con el terminal: {mt5.last_error()}")
-    cuenta = exigir_demo()
+    cuenta = exigir_demo(args.cuenta)
     print(f"cuenta {cuenta.login} · {cuenta.server} · DEMO · saldo {cuenta.balance:.2f} "
           f"{cuenta.currency} · 1:{cuenta.leverage}")
     if not args.enserio:
         print("MODO SIMULACION: se dice lo que se haria y no se manda nada.\n")
 
-    vivos = {s.name for s in mt5.symbols_get()}
+    # LOS OPERABLES MANDAN. Ver `simbolos.py`: el grupo pelado esta DESACTIVADO en esta
+    # cuenta y cuesta el doble de spread que el `#`. Mandar la orden al simbolo que no se
+    # puede operar falla; mandarla al caro sale mas caro y en silencio.
+    _todos = mt5.symbols_get() or []
+    vivos = {s.name for s in _todos}
+    operables = operables_de(_todos)
     ordenes = nuestras_ordenes()
     posiciones = nuestras_posiciones()
     puestas_vivas = {o.comment for o in ordenes} | {p.comment for p in posiciones}
@@ -907,7 +942,7 @@ def main():
             if idea in yaLaIdea:
                 print(f"   - {ident:<28} esa misma señal ya esta puesta desde otro registro")
                 continue
-            sym = simbolo_broker(p["par"], vivos)
+            sym = simbolo_broker(p["par"], vivos, operables)
             if sym is None:
                 print(f"   ! {ident:<28} el broker no tiene ese par")
                 continue

@@ -13,6 +13,7 @@ from ejecutor import (
     divisas, exposicion_divisas, identidad, limitada_valida, lote, nocional,
     peaje, perdida_del_dia, que_hacer, riesgo_hueco, simbolo_broker,
 )
+from simbolos import operables_de
 
 # Los de la cuenta de verdad, leidos del terminal el 12 sep: XM, cruces JPY, 3 decimales.
 TICK_SIZE = 0.001
@@ -245,6 +246,14 @@ class PerdidaDiaria(unittest.TestCase):
 
 
 class Simbolos(unittest.TestCase):
+    """
+    La eleccion de simbolo, que el 14 sep dejo de ser trivial.
+
+    En la cuenta nueva conviven `EURUSD` (grupo Standard, DESACTIVADO, 2,20 pips de spread) y
+    `EURUSD#` (Ultra Low, operable, 1,30). Elegir mal no da error: da el doble de coste sobre un
+    simbolo al que el broker no deja mandar ordenes.
+    """
+
     def test_nombre_exacto(self):
         self.assertEqual(simbolo_broker("USDJPY=X", {"USDJPY", "EURUSD"}), "USDJPY")
 
@@ -254,6 +263,42 @@ class Simbolos(unittest.TestCase):
     def test_si_el_broker_no_lo_tiene_devuelve_None(self):
         # Mejor None que adivinar: operar otro par por parecerse el nombre es peor que no operar.
         self.assertIsNone(simbolo_broker("CADJPY=X", {"USDJPY", "EURUSD"}))
+
+    def test_gana_el_operable_aunque_el_pelado_exista(self):
+        todos = {"EURUSD", "EURUSD#"}
+        self.assertEqual(simbolo_broker("EURUSD=X", todos, {"EURUSD#"}), "EURUSD#")
+
+    def test_sin_lista_de_operables_se_porta_como_antes(self):
+        # Los seis grabadores que ya corren llaman sin ese argumento.
+        self.assertEqual(simbolo_broker("EURUSD=X", {"EURUSD", "EURUSD#"}), "EURUSD")
+
+    def test_el_pelado_gana_si_es_operable(self):
+        todos = {"USDJPY", "USDJPY#"}
+        self.assertEqual(simbolo_broker("USDJPY=X", todos, {"USDJPY", "USDJPY#"}), "USDJPY")
+
+    def test_si_ninguno_es_operable_vale_cualquiera(self):
+        # Medir no es operar: quedarse sin velas porque el broker tenga el instrumento cerrado
+        # seria peor que leerlas de un simbolo que hoy no se puede tocar.
+        self.assertEqual(simbolo_broker("GBPJPY=X", {"GBPJPY#"}, set()), "GBPJPY#")
+
+    def test_un_par_que_no_esta_devuelve_none(self):
+        self.assertIsNone(simbolo_broker("CADJPY=X", {"EURUSD#"}, {"EURUSD#"}))
+
+    def test_elige_siempre_el_mismo_cuando_hay_varios(self):
+        # Sin orden, dos pasadas seguidas podrian coger simbolos distintos y el registro
+        # mezclaria instrumentos sin que nada avisara.
+        todos = {"EURUSD#", "EURUSD.raw", "EURUSDm"}
+        self.assertEqual(
+            simbolo_broker("EURUSD=X", todos, todos), simbolo_broker("EURUSD=X", todos, todos),
+        )
+
+    def test_operables_de_filtra_por_trade_mode(self):
+        class S:
+            def __init__(self, name, trade_mode):
+                self.name, self.trade_mode = name, trade_mode
+        # 4 es SYMBOL_TRADE_MODE_FULL; 0 es desactivado y 3 es "solo cerrar".
+        dados = [S("EURUSD", 0), S("EURUSD#", 4), S("GOLD#", 3)]
+        self.assertEqual(operables_de(dados), {"EURUSD#"})
 
 
 class Identidad(unittest.TestCase):

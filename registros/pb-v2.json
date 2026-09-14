@@ -1,0 +1,48 @@
+{
+  "version": 2,
+  "nombre": "pullback",
+  "inicio": "2026-09-14T05:49:00.824Z",
+  "ultima": "2026-09-14T06:00:40.004Z",
+  "pasadas": 6,
+  "ajustes": {
+    "version": "V2",
+    "fuente": "MT5 #",
+    "pb": {
+      "version": "V2",
+      "usarMacro": true,
+      "emaRapida": 50,
+      "emaLenta": 200,
+      "periodoRsi": 14,
+      "rsiMayorMin": 50,
+      "rsiMayorMax": 72,
+      "zonaBaja": 38,
+      "zonaAlta": 46,
+      "gatillo": 48,
+      "vigencia": 12,
+      "velasPendiente": 3,
+      "velasSwing": 20,
+      "colchonAtr": 0.15,
+      "maxStopAtr": 1.8,
+      "objetivoR": 2,
+      "adxMinimo": 20,
+      "adxSubiendoDesde": 2,
+      "cuerpoMinimoAtr": 0.3,
+      "atrRelativoMin": 0.75,
+      "atrRelativoMax": 2
+    }
+  },
+  "costeBps": 1.9,
+  "vigencia": 1,
+  "pendientes": [],
+  "abiertas": [],
+  "cerradas": [],
+  "vistoHasta": {
+    "EURUSD=X": 1789365300,
+    "GBPUSD=X": 1789365300,
+    "USDJPY=X": 1789365300,
+    "EURJPY=X": 1789365300,
+    "GBPJPY=X": 1789365300,
+    "AUDUSD=X": 1789365300
+  },
+  "discrepancias": []
+}

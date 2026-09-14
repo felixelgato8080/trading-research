@@ -396,3 +396,82 @@ test("UN MARCADOR QUE NO SABE devuelve undefined y el campo se queda fuera", () 
   const c = pasada(b.registro, new Map([["X", velas]]), enCien, "d3", m).registro.cerradas[0]!;
   assert.equal("marca" in c, false, "undefined no es un valor que guardar");
 });
+
+// ---------------------------------------------------------------------------------------
+// ENTRADA A MERCADO. La estrategia de retroceso no pone una orden y espera: su señal es el
+// cierre de la vela de confirmacion, y entra en cuanto puede.
+// ---------------------------------------------------------------------------------------
+
+/** La misma señal de `enCien`, pero a mercado. */
+const aMercado: Proveedor = (_par, velas) =>
+  velas.length > 35
+    ? [{ i: 34, direccion: "LARGO", entrada: 100, stop: 90, objetivo: 130, rr: 3, tipo: "MERCADO" }]
+    : [];
+
+const tresCon = (velas: Vela[], p: Proveedor) => {
+  const reg = registroNuevo("h", "d0", {}, 0, 50);
+  const a = pasada(reg, new Map([["X", velas.slice(0, 35)]]), p, "d1");
+  const b = pasada(a.registro, new Map([["X", velas]]), p, "d2");
+  return pasada(b.registro, new Map([["X", velas]]), p, "d3").registro;
+};
+
+test("A MERCADO SE LLENA EN LA APERTURA DE LA SIGUIENTE VELA, no al precio de la señal", () => {
+  // El cierre de la vela de la señal ya no existe cuando uno reacciona. Aqui la vela 35 abre
+  // en 103, tres puntos peor que la señal, y eso es lo que hay que apuntar.
+  const reg = tresCon(conHueco(
+    v(35, 103, 104, 102, 103), v(36, 103, 135, 102, 130), v(37, 130, 131, 129, 130),
+  ), aMercado);
+  assert.equal(reg.abiertas.length + reg.cerradas.length, 1);
+  const op = reg.cerradas[0] ?? reg.abiertas[0]!;
+  assert.equal(op.entradaReal, 103, "se llena en la apertura de la vela 35");
+  assert.equal(op.entrada, 100, "el precio apuntado NO se reescribe");
+  assert.equal(op.tEntrada, 35 * H);
+});
+
+test("a mercado se entra AUNQUE EL PRECIO NUNCA VUELVA al nivel de la señal", () => {
+  // Es la diferencia entera con la limitada: el precio se va hacia arriba y no mira atras.
+  // Una limitada se quedaria fuera; una de mercado coge el arranque, que es para lo que esta.
+  // El objetivo tiene que caer en la vela 36: la ultima de la serie es la que esta EN CURSO y
+  // el grabador no la mira, asi que una operacion que se resolviera ahi no se cerraria.
+  const velas = conHueco(
+    v(35, 101, 106, 101, 105), v(36, 105, 135, 104, 130), v(37, 130, 131, 129, 130),
+  );
+  const conLimitada = tresCon(velas, enCien);
+  const conMercado = tresCon(velas, aMercado);
+  assert.equal(conLimitada.abiertas.length + conLimitada.cerradas.length, 0,
+    "la limitada no deberia llenarse: el precio nunca baja a 100");
+  assert.equal(conMercado.cerradas.length, 1);
+  assert.equal(conMercado.cerradas[0]!.entradaReal, 101);
+  assert.equal(conMercado.cerradas[0]!.motivo, "OBJETIVO");
+});
+
+test("el resultado en R se mide contra el llenado REAL, no contra el precio apuntado", () => {
+  // Entra en 103 en vez de en 100 y el objetivo sigue en 130: gana 27 sobre un riesgo
+  // planeado de 10, no 30. Si se midiera contra los 100 apuntados, el registro se estaria
+  // regalando 0,3R en cada operacion.
+  const reg = tresCon(conHueco(
+    v(35, 103, 104, 102, 103), v(36, 103, 135, 102, 130), v(37, 130, 131, 129, 130),
+  ), aMercado);
+  const c = reg.cerradas[0]!;
+  assert.equal(c.motivo, "OBJETIVO");
+  assert.ok(Math.abs(c.r - 2.7) < 1e-9, `dio ${c.r}R y tenian que ser 2,7`);
+});
+
+test("NO SE ENTRA EN LA VELA DE LA SEÑAL: su cierre ya paso cuando se decide", () => {
+  // Si llenara ahi estaria operando con informacion del mismo instante en que decide, que es
+  // el look-ahead mas fino de todos y el mas facil de colar.
+  const reg = tresCon(conHueco(
+    v(35, 103, 104, 102, 103), v(36, 103, 135, 102, 130), v(37, 130, 131, 129, 130),
+  ), aMercado);
+  const op = reg.cerradas[0] ?? reg.abiertas[0]!;
+  assert.ok(op.tEntrada > op.tSeñal, "la entrada tiene que ser POSTERIOR a la señal");
+});
+
+test("una señal sin `tipo` sigue siendo limitada, y las pendientes salen sin el campo", () => {
+  // Los seis registros que ya estan corriendo se escribieron sin este campo. Si apareciera
+  // ahora en sus pendientes, cambiaria lo grabado sin que nadie lo hubiera pedido.
+  const velas = conHueco(v(35, 101, 102, 100.5, 101), v(36, 101, 102, 100.5, 101));
+  const reg = tresCon(velas, enCien);
+  assert.equal(reg.pendientes.length, 1);
+  assert.equal("tipo" in reg.pendientes[0]!, false);
+});

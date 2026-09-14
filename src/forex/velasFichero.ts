@@ -18,9 +18,42 @@ import type { Vela, Temporalidad } from "./datos";
 
 export interface VelasDeFichero {
   fuente: string;
+  /**
+   * De que simbolo del broker salio cada par: `{"EURUSD=X": "EURUSD#"}`.
+   *
+   * Opcional porque los ficheros escritos antes del 14 sep no lo traen.
+   */
+  simbolos?: Record<string, string>;
   desfase: number;
   sacadas: string;
   tf: Record<string, Record<string, Vela[]>>;
+}
+
+/**
+ * Una etiqueta corta del GRUPO de simbolos del que salieron las velas.
+ *
+ * POR QUE HACE FALTA. En la cuenta del 14 sep conviven `EURUSD` (grupo Standard, 2,20 pips de
+ * spread) y `EURUSD#` (Ultra Low, 1,30). Las velas son BID, asi que el mismo mercado da dos
+ * series distintas segun el grupo, separadas por medio pip constante — sobre un stop de 18 pips,
+ * el 3% del riesgo.
+ *
+ * Va dentro de los ajustes del registro para que el grabador se niegue a continuar uno empezado
+ * con el otro grupo. Es exactamente la guarda que impidio mezclar Yahoo con XM.
+ *
+ * Se resume en el SUFIJO comun en vez de listar los doce nombres: lo que distingue a los grupos
+ * es eso, y una etiqueta larga haria ilegible el mensaje de error que la compara.
+ */
+export function grupoDeSimbolos(datos: VelasDeFichero): string {
+  const nombres = Object.entries(datos.simbolos ?? {});
+  if (!nombres.length) return "";
+  const sufijos = new Set(nombres.map(([par, real]) => {
+    const base = par.replace("=X", "");
+    return real.startsWith(base) ? real.slice(base.length) : `=${real}`;
+  }));
+  const lista = [...sufijos].sort();
+  // Todos iguales: una etiqueta. Mezclados: se dicen todos, porque entonces el registro esta
+  // leyendo de dos grupos a la vez y eso tiene que verse.
+  return lista.length === 1 ? (lista[0] || "plano") : lista.map((x) => x || "plano").join("+");
 }
 
 export interface Lectura {

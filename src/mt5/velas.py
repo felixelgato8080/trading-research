@@ -34,6 +34,9 @@ import argparse
 import json
 import os
 import time
+
+from cuenta import exigir_cuenta
+from simbolos import operables_de, simbolo_broker
 from datetime import datetime, timezone
 
 try:
@@ -61,7 +64,7 @@ def desfase_servidor(pares):
     """
     mejor = None
     for p in pares:
-        r = mt5.copy_rates_from_pos(p, mt5.TIMEFRAME_M5, 0, 1)
+        r = mt5.copy_rates_from_pos(p, mt5.TIMEFRAME_M5, 0, 1)  # ya son nombres del broker
         if r is not None and len(r):
             t = int(r[0]["time"])
             if mejor is None or t > mejor:
@@ -71,10 +74,10 @@ def desfase_servidor(pares):
     return int(round((mejor - time.time()) / 1800.0) * 1800)
 
 
-def sacar(par, tf, n, desfase):
-    """Las ultimas `n` velas de un par, en el formato que entiende el resto del proyecto."""
+def sacar(simbolo, tf, n, desfase):
+    """Las ultimas `n` velas de un simbolo, en el formato que entiende el resto del proyecto."""
     constante, paso = TF[tf]
-    r = mt5.copy_rates_from_pos(par, getattr(mt5, constante), 0, n)
+    r = mt5.copy_rates_from_pos(simbolo, getattr(mt5, constante), 0, n)
     if r is None or len(r) == 0:
         return []
     out = []
@@ -103,6 +106,8 @@ def main():
     ap.add_argument("--tf", default="5m,15m")
     ap.add_argument("--n", type=int, default=6000,
                     help="velas de la temporalidad mas corta; las demas se escalan")
+    ap.add_argument("--cuenta", type=int, default=0,
+                    help="login que DEBE tener el terminal; si no, no se escribe nada")
     args = ap.parse_args()
 
     pares = [x.strip() for x in args.pares.split(",") if x.strip()]
@@ -124,15 +129,51 @@ def main():
 
     if not mt5.initialize():
         raise SystemExit(f"no se pudo conectar con el terminal: {mt5.last_error()}")
+
+    # ANTES DE LEER UNA SOLA VELA. El terminal se engancha a la cuenta que haya puesta, y
+    # cada cuenta trae su grupo de simbolos con su spread. Sacar las velas de la cuenta
+    # equivocada mete en el registro precios de otro instrumento sin que nada falle.
+    mal = exigir_cuenta(mt5.account_info(), args.cuenta)
+    if mal:
+        mt5.shutdown()
+        raise SystemExit(mal)
+
+    # COMO SE LLAMA CADA PAR AQUI, preguntado al terminal en vez de supuesto.
+    #
+    # El 14 sep el terminal cambio de cuenta demo y en la nueva los cruces solo existen con
+    # sufijo: `GBPJPY` no existe, `GBPJPY#` si. Pidiendo el nombre pelado, MT5 contesta
+    # "Terminal: Call failed" y `copy_rates_from_pos` devuelve None; el fichero salia con 7
+    # pares de 12 y los grabadores seguian corriendo con lo que hubiera.
+    # Y DE LOS QUE HAY, LOS QUE SE PUEDEN OPERAR. En esta cuenta conviven `EURUSD` (grupo
+    # Standard, DESACTIVADO, 2,20 pips) y `EURUSD#` (Ultra Low, operable, 1,30). Sacar las velas
+    # del primero seria medir sobre un instrumento que no se puede tocar y que ademas cuesta el
+    # doble: decidir en un libro y ejecutar en otro, otra vez.
+    todos = mt5.symbols_get() or []
+    vivos = {s.name for s in todos}
+    operables = operables_de(todos)
+    nombres = {}
+    sin_simbolo = []
     for p in pares:
-        mt5.symbol_select(p, True)
-    desfase = desfase_servidor(pares)
+        real = simbolo_broker(p, vivos, operables)
+        if real is None:
+            sin_simbolo.append(p)
+            continue
+        nombres[p] = real
+        mt5.symbol_select(real, True)
+    if sin_simbolo:
+        print(f"NO EXISTEN EN ESTA CUENTA: {', '.join(sin_simbolo)}")
+    renombrados = [f"{p}->{r}" for p, r in nombres.items() if p != r]
+    if renombrados:
+        # Que un par se pida con un nombre y se lea con otro tiene que VERSE. Si algun dia el
+        # resolutor acierta con el simbolo equivocado, esta linea es lo unico que lo delata.
+        print(f"SIMBOLOS RENOMBRADOS: {', '.join(sorted(renombrados))}")
+    desfase = desfase_servidor(list(nombres.values()))
 
     datos = {}
     faltan = []
     for t in tfs:
-        for p in pares:
-            vs = sacar(p, t, cuantas[t], desfase)
+        for p, real in nombres.items():
+            vs = sacar(real, t, cuantas[t], desfase)
             if len(vs) < 300:
                 faltan.append(f"{p} {t} ({len(vs)})")
                 continue
@@ -150,6 +191,16 @@ def main():
 
     salida = {
         "fuente": f"MT5 {servidor}",
+        # DE QUE SIMBOLO SALIO CADA PAR, y no es un adorno.
+        #
+        # En esta cuenta conviven `EURUSD` (Standard, 2,20 pips) y `EURUSD#` (Ultra Low, 1,30).
+        # Las velas son BID, asi que el mismo mercado da DOS series distintas segun el grupo: con
+        # medio pip de diferencia constante, que sobre un stop de 18 pips es el 3% del riesgo.
+        #
+        # Escribirlo aqui permite que el grabador lo meta en sus ajustes y se NIEGUE a continuar
+        # un registro empezado con el otro grupo. Es la misma guarda que ya impidio mezclar Yahoo
+        # con XM; sin ella, un cambio de cuenta mezcla dos series sin que nada avise.
+        "simbolos": nombres,
         "desfase": desfase,
         "sacadas": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "tf": datos,

@@ -51,6 +51,8 @@ from datetime import datetime, timezone
 
 import MetaTrader5 as mt5
 
+from cuenta import exigir_cuenta
+
 PARES = ["EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD",
          "EURJPY", "EURGBP", "GBPJPY", "AUDJPY", "CADJPY"]
 
@@ -303,6 +305,10 @@ def main():
     ap.add_argument("--informe", action="store_true", help="solo leer y resumir, sin medir")
     ap.add_argument("--cuenta", default="",
                     help="quedarse solo con las muestras de ese servidor")
+    # OJO: `--cuenta` de arriba filtra el INFORME; este para la MEDICION. Son cosas distintas y
+    # por eso no comparten nombre.
+    ap.add_argument("--login", type=int, default=0,
+                    help="login que DEBE tener el terminal; si no, no se mide nada")
     # OCHO LECTURAS CADA 30 SEGUNDOS = CUATRO MINUTOS de los quince que hay entre pasadas.
     # Deja once minutos de margen para que dos ejecuciones no se solapen: se solapan y las dos
     # leen el mismo fichero, lo modifican y lo escriben, y la segunda borra lo de la primera.
@@ -324,6 +330,14 @@ def main():
             print("no se pudo conectar con el terminal:", mt5.last_error())
             raise SystemExit(1)
         cuenta = mt5.account_info()
+        # LA CUENTA EQUIVOCADA ENVENENA EL PERFIL DE SPREAD, que es con lo que se decide si una
+        # estrategia paga el peaje. Medido el 14 sep, entre las dos cuentas demo que tuvo el
+        # terminal ese dia hay el DOBLE de spread (EURUSD 2,20 pips contra 1,30). Mezclarlas en
+        # el mismo fichero da una mediana que no es la de ninguna de las dos.
+        mal = exigir_cuenta(cuenta, args.login)
+        if mal:
+            mt5.shutdown()
+            raise SystemExit(mal)
         if cuenta is not None and cuenta.trade_mode != 0:
             print("ATENCION: esta cuenta NO es demo. Este programa solo lee, pero avisa igual.")
         servidor = cuenta.server if cuenta is not None else "?"

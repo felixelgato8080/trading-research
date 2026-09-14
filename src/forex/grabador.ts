@@ -38,6 +38,18 @@ export interface SeñalGrabable {
   objetivo: number;
   /** Multiplo del riesgo que paga el objetivo. Varia por señal cuando el objetivo es un nivel. */
   rr: number;
+  /**
+   * Como se entra. Ausente significa LIMITADA, que es lo que hacian todas las estrategias hasta
+   * que aparecio la de retroceso.
+   *
+   * LIMITADA  la orden se posa en `entrada` y espera. Si el precio nunca vuelve, no hay
+   *           operacion. Es lo que hacen las divergencias: el nivel se conoce de antemano.
+   * MERCADO   se entra en cuanto se pueda, al precio que haya. Es lo que hace el retroceso:
+   *           su señal ES el cierre de la vela de confirmacion, y para entonces el precio ya
+   *           se ha ido. Poner ahi una limitada seria quedarse fuera justo de los arranques
+   *           que la estrategia existe para coger.
+   */
+  tipo?: "LIMITADA" | "MERCADO";
 }
 
 export interface Pendiente {
@@ -49,6 +61,8 @@ export interface Pendiente {
   rr: number;
   /** Momento en que se apunto, antes de que el precio llegara. */
   apuntada: string;
+  /** Ver `SeñalGrabable.tipo`. Ausente significa LIMITADA. */
+  tipo?: "LIMITADA" | "MERCADO";
   /** Vela de la señal. Nada anterior o igual a esto puede abrirla. */
   tSeñal: number;
   caducaEn: number;
@@ -291,6 +305,9 @@ export function pasada<A>(
       r.pendientes.push({
         par, direccion: s.direccion, entrada: s.entrada, stop: s.stop, objetivo: s.objetivo,
         rr: s.rr, apuntada: ahora, tSeñal: c.t, caducaEn: c.t + paso * r.vigencia,
+        // Solo se escribe cuando NO es limitada: asi las pendientes de los registros que ya
+        // corren salen byte a byte iguales que antes de que este campo existiera.
+        ...(s.tipo && s.tipo !== "LIMITADA" ? { tipo: s.tipo } : {}),
         // Con el grabador al dia la señal ES la ultima vela cerrada y esto sale 0, que es lo
         // que hace del registro una prueba hacia adelante y no un backtest con retraso.
         velasDeRetraso: Math.max(0, Math.round((velas[hasta]!.t - c.t) / paso)),
@@ -308,6 +325,26 @@ export function pasada<A>(
         if (c.t <= p.tSeñal) continue;
         if (c.t > p.caducaEn) break;
         const largo = p.direccion === "LARGO";
+        // A MERCADO SE ENTRA EN LA APERTURA DE LA SIGUIENTE VELA, y no al precio de la señal.
+        //
+        // La señal es el CIERRE de su vela, y ese precio ya no existe cuando uno reacciona: al
+        // cerrar la vela mandas la orden y te llenan con el siguiente tick. Apuntar el cierre
+        // como llenado seria regalarse el hueco de la apertura, que es sistematicamente el que
+        // va en contra en un arranque.
+        //
+        // Ojo con el retraso: si el grabador va tarde, esta apertura ya ocurrio. No falsea el
+        // precio —lo fija la vela de la señal, no la eleccion de nadie— pero tampoco prueba
+        // nada hacia adelante. Eso lo cuenta `velasDeRetraso`, que se guarda aparte.
+        if (p.tipo === "MERCADO") {
+          const marca = marcador?.(par, c.t);
+          r.abiertas.push({
+            ...p, abierta: ahora, tEntrada: c.t, entradaReal: c.o,
+            ...(marca === undefined ? {} : { marca }),
+          });
+          res.abiertas += 1;
+          abierta = true;
+          break;
+        }
         if (largo ? c.l <= p.entrada : c.h >= p.entrada) {
           // EL HUECO EN LA ENTRADA. La orden esta posada en `p.entrada`. Si la vela ABRE ya
           // pasada de ese nivel, te llenan en la apertura, mejor. El precio APUNTADO no se

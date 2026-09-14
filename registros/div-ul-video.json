@@ -1,0 +1,60 @@
+{
+  "version": 2,
+  "nombre": "divergencia",
+  "inicio": "2026-09-14T05:48:58.357Z",
+  "ultima": "2026-09-14T06:00:37.548Z",
+  "pasadas": 6,
+  "ajustes": {
+    "modo": "video",
+    "fuente": "MT5 #",
+    "div": {
+      "periodoRsi": 14,
+      "confirmacion": 2,
+      "umbralAlto": 70,
+      "minSeparacion": 3,
+      "maxSeparacion": 60,
+      "exigirFueraDelCanal": true
+    },
+    "ent": {
+      "zona": {
+        "minHueco": 0.2,
+        "minEmpuje": 1,
+        "vigencia": 60,
+        "esperaBloque": 20,
+        "colchon": 0.1,
+        "objetivoR": 2,
+        "radioLiquidez": 0.5,
+        "toquesLiquidez": 3,
+        "memoriaHuecos": 50
+      },
+      "esperaZona": 40,
+      "esperaEntrada": 60,
+      "colchon": 0.1,
+      "stop": "ZONA",
+      "objetivo": "LIQUIDEZ",
+      "objetivoR": 2,
+      "rrMinimo": 1,
+      "minRiesgoAtr": 0.5
+    }
+  },
+  "costeBps": 0.6,
+  "vigencia": 60,
+  "pendientes": [],
+  "abiertas": [],
+  "cerradas": [],
+  "vistoHasta": {
+    "EURUSD=X": 1789365300,
+    "GBPUSD=X": 1789365300,
+    "USDJPY=X": 1789365300,
+    "USDCHF=X": 1789365300,
+    "AUDUSD=X": 1789365300,
+    "USDCAD=X": 1789365300,
+    "NZDUSD=X": 1789365300,
+    "EURJPY=X": 1789365300,
+    "EURGBP=X": 1789365300,
+    "GBPJPY=X": 1789365300,
+    "AUDJPY=X": 1789365300,
+    "CADJPY=X": 1789365300
+  },
+  "discrepancias": []
+}
