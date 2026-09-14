@@ -42,8 +42,14 @@ test("EL MODO `afinado` GRABA LO QUE SE MIDIO, no otra cosa", () => {
   const pares = lista![1]!.match(/"[^"]+"/g)!.map((x) => x.replace(/"/g, ""));
   assert.deepEqual(pares, ["USDJPY=X", "GBPJPY=X", "EURJPY=X", "AUDJPY=X"]);
 
-  // Colchon 1: sube el stop de 5,3 a 9,4 pips y baja el peaje del 22% al 13% del riesgo.
-  assert.match(fuente, /const colchon = modo === "afinado" \? 1 : 0\.1/);
+  // EL COLCHON POR DEFECTO SIGUE SIENDO 1, aunque desde el 14 sep se pueda pedir otro con
+  // `--colchon=`. Lo que esta prueba protege es que nadie cambie el DEFECTO sin querer: un
+  // registro empezado manda en sus propios ajustes, pero el que se empiece mañana hereda esto.
+  //
+  // Y el 2 existe por una razon medida sobre precios de XM: duplica la tolerancia al spread
+  // —equilibrio de ~0,9 a ~2,0 pips— sin costar bruto. Se graba aparte, en `div-xm2`, en vez
+  // de cambiar el defecto, porque los dos tienen que poder compararse sobre las mismas señales.
+  assert.match(fuente, /const colchon = num\("colchon", modo === "afinado" \? 1 : 0\.1\)/);
 
   // Objetivo fijo 1,5R. La esperanza es plana entre 0,75R y 3R, asi que se elige por la forma
   // de la curva: 50% de acierto hace que las rachas malas sean cortas.
