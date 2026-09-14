@@ -229,6 +229,37 @@ el efecto es que las seis filas sean positivas**, no cual es la mejor — eso es
 Sigue siendo en muestra y 31 dias. Lo que lo hace defendible es el mecanismo: el peaje ES
 spread/stop, y esto quita exactamente las operaciones donde ese cociente es insostenible.
 
+### PERO NO PASA EL CONTROL DE "QUITAR EL MEJOR INSTRUMENTO"
+
+| par | ops | esperanza | suma | % del total |
+|---|---|---|---|---|
+| **GBPJPY** | 19 | +0,787R | +15,0R | **84%** |
+| USDJPY | 22 | +0,145R | +3,2R | 18% |
+| AUDJPY | 7 | −0,002R | −0,0R | 0% |
+| EURJPY | 15 | −0,025R | −0,4R | −2% |
+| TODOS | 63 | +0,282R | +17,8R | |
+
+**Sin GBPJPY: 44 ops, +0,064R, 0,4σ.** O sea, nada.
+
+El +0,285R es un par, diecinueve operaciones, treinta y un dias, y un 79% de acierto que en una
+muestra asi es exactamente lo que sale por azar de vez en cuando.
+
+**Que se salva y que no:** el MECANISMO del filtro se sostiene —la direccion es la misma en los
+seis umbrales de 10% a 30%, y el peaje es spread/stop por definicion— asi que quitar las
+operaciones donde el spread se lleva un tercio del riesgo sigue siendo correcto. Lo que NO se
+sostiene es la MAGNITUD: lo honesto es esperar algo entre 0 y +0,06R, no +0,285R.
+
+### Y NINGUN PAR NUEVO AYUDA
+
+Se midieron los 28 pares de forex de XM con spread por debajo de ~6 pips, con el mismo filtro.
+De los 14 candidatos nuevos, **ninguno aporta**: o no pasan ni ocho operaciones el filtro, o son
+negativos (NZDJPY −0,324R, GBPUSD −0,400R, CHFJPY −0,467R, USDCNH −0,238R). El unico nuevo que
+no pierde es EURUSD, con +0,020R sobre 15 operaciones, que es cero.
+
+Y fijarse en el motivo: **no fallan por spread, fallan por señal.** CHFJPY tiene stop de 12,6
+pips y peaje del 38% —mejor ratio que USDJPY— y da −0,467R. El spread bajo no crea borde donde
+no lo hay.
+
 ## LA FOTO COMPLETA SOBRE PRECIOS DE XM (14 sep)
 
 Con el simulador arreglado, las velas del broker y el spread real medido. 12 pares, 31 dias.
