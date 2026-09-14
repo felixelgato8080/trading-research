@@ -6,6 +6,7 @@ import {
   type AjustesDivergencia, type AjustesEntrada,
 } from "../src/forex/divergencia";
 import type { AjustesSMC } from "../src/forex/smc";
+import { rsi } from "../src/forex/rsi";
 
 const M15 = 900;
 const M5 = 300;
@@ -227,4 +228,44 @@ test("UN RIESGO CASI CERO NO ES UNA OPERACION, es una division entre casi cero",
   const conGuarda = señales(mayores, rsiM, menores, atrM, AJ, { ...ENT, minRiesgoAtr: 50 });
   assert.ok(sinGuarda.length >= conGuarda.length, "la guarda solo puede quitar operaciones");
   assert.equal(conGuarda.length, 0, "con un minimo absurdo no queda ninguna");
+});
+
+test("UNA DIVERGENCIA ANTERIOR A LAS VELAS MENORES NO EXISTE PARA NOSOTROS", () => {
+  // `findIndex` devuelve 0 cuando el instante buscado cae ANTES de la primera vela, porque esa
+  // primera ya cumple `>=`. Sin guarda, una divergencia vieja se emparejaba con el principio
+  // del 5m y buscaba entrada en precio que no tiene nada que ver con ella.
+  //
+  // Paso de verdad el 14 sep al cambiar a las velas de MT5: sirve 3.000 de cada temporalidad,
+  // que son 10 dias en 5m y 31 en 15m. Invento operaciones con 91% de acierto.
+  const may: Vela[] = [];
+  for (let i = 0; i < 80; i += 1) {
+    // Maximos crecientes con RSI decreciente: una divergencia bajista de manual.
+    const base = 100 + i * 0.05;
+    const pico = i === 20 || i === 60;
+    may.push({ t: i * 900, o: base, h: base + (pico ? 3 + i * 0.02 : 0.2), l: base - 0.2, c: base });
+  }
+  const aj: AjustesDivergencia = {
+    periodoRsi: 14, confirmacion: 2, umbralAlto: 70,
+    minSeparacion: 3, maxSeparacion: 60, exigirFueraDelCanal: false,
+  };
+  const ent: AjustesEntrada = {
+    zona: {
+      minHueco: 0.2, minEmpuje: 1, vigencia: 60, esperaBloque: 20, colchon: 1,
+      objetivoR: 2, radioLiquidez: 0.5, toquesLiquidez: 3, memoriaHuecos: 50,
+    },
+    esperaZona: 40, esperaEntrada: 60, colchon: 1,
+    stop: "ZONA", objetivo: "FIJO", objetivoR: 1.5, rrMinimo: 0, minRiesgoAtr: 0,
+  };
+  const r = rsi(may.map((v) => v.c), aj.periodoRsi);
+  const atrPlano = (n: number) => Array.from({ length: n }, () => 0.5);
+
+  // Velas menores que empiezan DESPUES de toda la serie mayor: ninguna divergencia puede
+  // emparejarse, asi que no puede salir ni una señal.
+  const tarde: Vela[] = Array.from({ length: 300 }, (_, k) => ({
+    t: 80 * 900 + k * 300, o: 110, h: 110.5, l: 109.5, c: 110,
+  }));
+  assert.equal(
+    señales(may, r, tarde, atrPlano(tarde.length), aj, ent).length, 0,
+    "una divergencia anterior a las velas menores no puede generar entrada",
+  );
 });

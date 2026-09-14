@@ -247,6 +247,20 @@ export function señales(
     // La vela que confirma cierra al final de su periodo: antes de eso nadie sabia nada.
     const tConfirmacion = velaConfirma.t + pasoMayor;
 
+    // SI LA DIVERGENCIA ES ANTERIOR A LAS VELAS MENORES, NO EXISTE PARA NOSOTROS.
+    //
+    // `findIndex` devuelve 0 cuando `tConfirmacion` cae ANTES de la primera vela menor, porque
+    // esa primera ya cumple `>= tConfirmacion`. Sin esta guarda, una divergencia de hace tres
+    // semanas se emparejaba con el principio del 5m y buscaba su entrada ahi: precio que no
+    // tiene nada que ver con la señal, y siempre el mismo para todas las viejas.
+    //
+    // NO ES TEORICO. MT5 sirve 3.000 velas de cada temporalidad, que son 10 dias en 5m y 31 en
+    // 15m, asi que en cuanto se cambio la fuente de datos las dos series dejaron de cubrir el
+    // mismo periodo. Medido el 14 sep, esto inventaba operaciones con un 91% de acierto y
+    // sigmas de 10^14: no era una estrategia buena, era la misma operacion contada cincuenta
+    // veces.
+    const primeraMenor = menores[0];
+    if (!primeraMenor || tConfirmacion < primeraMenor.t) continue;
     // Primera vela menor posterior al cierre de la mayor.
     let j0 = menores.findIndex((v) => v.t >= tConfirmacion);
     if (j0 < 0) continue;

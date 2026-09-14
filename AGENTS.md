@@ -197,6 +197,44 @@ probada, está esperando.
 
 ---
 
+## LA FOTO COMPLETA SOBRE PRECIOS DE XM (14 sep)
+
+Con el simulador arreglado, las velas del broker y el spread real medido. 12 pares, 31 dias.
+
+**La señal existe, y solo en los cuatro del yen.** Sobre la MISMA ventana y sin coste:
+
+| | ops | acierto | esperanza | sigma |
+|---|---|---|---|---|
+| Yahoo, 81 dias, 4 pares | 440 | 51% | +0,233R | 3,9σ |
+| Yahoo, misma ventana | 147 | 50% | +0,210R | 2,0σ |
+| **XM, misma ventana** | 184 | 47% | **+0,170R** | 1,8σ |
+
+Los precios de XM NO eran el problema: la señal vale casi lo mismo que en Yahoo. Lo que da cero
+es mezclar los 12 pares (−0,011R): los ocho lentos no tienen señal y arrastran la media.
+
+**El colchon 2 duplica la tolerancia al spread sin costar bruto:**
+
+| colchon | bruto | equilibrio | con el real (2,7-3,8) |
+|---|---|---|---|
+| 1 (lo que corre) | +0,170R | **~0,9 pips** | −0,423R |
+| **2** | +0,175R | **~2,0 pips** | −0,175R |
+| 3 | +0,155R | ~2,0 pips | −0,200R |
+
+El mecanismo es claro y no es ajuste a los datos: stop mas ancho, el mismo spread pesa menos.
+Y el bruto no baja, que es lo que habria que temer.
+
+**El spread se normalizo en cuanto paso la apertura**, y la mediana de la apertura engañaba:
+
+| hora UTC | USDJPY | GBPJPY | EURJPY | AUDJPY |
+|---|---|---|---|---|
+| 21h (apertura) | 21,60 | 27,90 | 23,40 | 19,70 |
+| 22h | 5,20 | 8,80 | 7,80 | 6,30 |
+| 23h | **2,70** | **4,00** | **3,80** | **3,90** |
+| 00h | **2,70** | **3,60** | **3,80** | **3,80** |
+
+**Donde queda:** hace falta ≤2,0 pips y hay 2,7-3,8 en sesion asiatica. La distancia es corta,
+no un abismo, y **solo tenemos una noche**: falta ver Londres, que es cuando el libro esta lleno.
+
 ## EL FALLO MAS GRANDE DEL PROYECTO (13 sep): el precio es un CANAL, no una linea
 
 El simulador trata el precio como una linea y cobra el spread como un descuento al RESULTADO.

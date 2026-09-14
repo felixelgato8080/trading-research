@@ -101,11 +101,23 @@ def main():
     ap.add_argument("--salida", required=True)
     ap.add_argument("--pares", default=",".join(PARES))
     ap.add_argument("--tf", default="5m,15m")
-    ap.add_argument("--n", type=int, default=3000)
+    ap.add_argument("--n", type=int, default=6000,
+                    help="velas de la temporalidad mas corta; las demas se escalan")
     args = ap.parse_args()
 
     pares = [x.strip() for x in args.pares.split(",") if x.strip()]
     tfs = [x.strip() for x in args.tf.split(",") if x.strip()]
+    # LAS DOS TEMPORALIDADES TIENEN QUE CUBRIR EL MISMO PERIODO.
+    #
+    # Con `n` igual para todas, 3.000 velas son 10 dias en 5m y 31 en 15m. Entonces una
+    # divergencia de hace tres semanas se emparejaba con el principio del 5m y buscaba su
+    # entrada ahi, en precio que no tiene nada que ver con ella. Medido el 14 sep, eso inventaba
+    # operaciones con un 91% de acierto: no era una estrategia buena, era la misma operacion
+    # contada cincuenta veces.
+    #
+    # `--n` se aplica a la temporalidad mas CORTA y el resto se escala para durar lo mismo.
+    paso_corto = min(TF[t][1] for t in tfs)
+    cuantas = {t: max(300, int(args.n * paso_corto / TF[t][1])) for t in tfs}
     for t in tfs:
         if t not in TF:
             raise SystemExit(f"temporalidad desconocida: {t}. Hay {', '.join(TF)}")
@@ -120,7 +132,7 @@ def main():
     faltan = []
     for t in tfs:
         for p in pares:
-            vs = sacar(p, t, args.n, desfase)
+            vs = sacar(p, t, cuantas[t], desfase)
             if len(vs) < 300:
                 faltan.append(f"{p} {t} ({len(vs)})")
                 continue
@@ -150,10 +162,11 @@ def main():
     os.replace(tmp, args.salida)
 
     for t, d in datos.items():
+        primera = min(min(v["t"] for v in vs) for vs in d.values())
         ultima = max(max(v["t"] for v in vs) for vs in d.values())
         edad = (time.time() - ultima) / 60
-        print(f"{t}: {len(d)} pares · ultima vela hace {edad:.0f} min · "
-              f"{sum(len(v) for v in d.values())} velas")
+        print(f"{t}: {len(d)} pares · {sum(len(v) for v in d.values())} velas · "
+              f"cubre {(ultima - primera) / 86400:.1f} dias · ultima hace {edad:.0f} min")
     print(f"servidor {desfase / 3600:+.1f}h sobre UTC · guardado en {args.salida}")
 
 
