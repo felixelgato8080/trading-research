@@ -223,7 +223,24 @@ compara un maximo del RSI con otro de **quince horas antes**: contextos de merca
 | sin el mejor par | 35 ops, +0,524R, 3,0σ |
 | con RSI de 5 | 127 ops, +0,308R, 3,3σ |
 
-En produccion: `--maxsep=40`, dos registros ejecutando (RSI 14 y RSI 5).
+En produccion: `--maxsep=40`, **un solo registro ejecutando** (RSI 14).
+
+### EL RSI 5 NO APORTA NADA PROPIO, y por eso no se ejecuta
+
+Parecia la via para multiplicar operaciones: 2,02 al dia contra 0,89, con +0,308R y 3,3σ. Pero
+al separarlo:
+
+| | ops | acierto | esperanza | sigma |
+|---|---|---|---|---|
+| RSI 14, todas las suyas | 56 | 64% | +0,674R | 5,1σ |
+| del 5, las que **comparte** con el 14 | 56 | 68% | +0,761R | 6,1σ |
+| del 5, las **suyas solas** | 71 | 42% | **−0,049R** | −0,4σ |
+
+**Todo el resultado del RSI 5 viene de las señales que comparte con el 14.** Replicado en Yahoo:
+sus propias dan −0,011R sobre 110 operaciones.
+
+Ejecutar los dos metia 71 operaciones de esperanza nula y diluia el conjunto de +0,674R a
+**+0,250R**: mas operaciones, menos dinero. Se graba en papel y no se opera.
 
 ### Lo demas de ese barrido, por si alguien lo vuelve a pensar
 

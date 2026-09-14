@@ -356,7 +356,7 @@ async function main(): Promise<void> {
   // operando.
   const fichas: Ficha[] = [
     { nombre: "XM sep40 RSI14 · EJECUTA", ruta: "registros/div-xm-sep40.json", esperanza: 0.67 },
-    { nombre: "XM sep40 RSI5 · EJECUTA", ruta: "registros/div-xm-sep40-rsi5.json", esperanza: 0.31 },
+    { nombre: "XM sep40 RSI5 · papel", ruta: "registros/div-xm-sep40-rsi5.json", esperanza: 0.31 },
     { nombre: "XM sep60 RSI14 · papel", ruta: "registros/div-xm2.json", esperanza: 0.45 },
     { nombre: "XM sep60 RSI5 · papel", ruta: "registros/div-xm-rsi5.json", esperanza: 0.23 },
     { nombre: "XM colchon 1 · papel", ruta: "registros/div-xm.json", esperanza: 0.17 },
