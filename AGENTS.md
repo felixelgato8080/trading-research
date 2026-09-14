@@ -197,6 +197,50 @@ probada, está esperando.
 
 ---
 
+## EL FALLO MAS GRANDE DEL PROYECTO (13 sep): el precio es un CANAL, no una linea
+
+El simulador trata el precio como una linea y cobra el spread como un descuento al RESULTADO.
+La realidad es que el spread cambia **el camino**: que operaciones llegan al objetivo y cuales
+no. Las velas de MT5 son BID, y el terminal no ejecuta todo contra el bid:
+
+| | se ejecuta cuando | en velas bid |
+|---|---|---|
+| compra limitada | ask ≤ nivel | bid ≤ nivel − spread |
+| venta limitada | bid ≥ nivel | igual que la vela |
+| stop de un largo | bid ≤ stop | igual que la vela |
+| **stop de un corto** | **ask ≥ stop** | **bid ≥ stop − spread** |
+| objetivo de un corto | ask ≤ objetivo | bid ≤ objetivo − spread |
+
+Para un corto con stop de 7 pips y spread de 5, el stop real esta a **2 pips** de la entrada.
+
+Medido sobre las 440 de `afinado`, aplicando el spread al camino:
+
+| spread | llenadas | acierto | esperanza | total |
+|---|---|---|---|---|
+| 0 (lo que simula hoy) | 440 | 47% | +0,243R | +107R |
+| 1 pip | 433 | 42% | +0,090R | +39R |
+| 2 pips | 432 | 34% | −0,113R | −49R |
+| 3 pips | 427 | 30% | −0,212R | −90R |
+| **5 pips** | 420 | 22% | **−0,407R** | **−171R** |
+
+(Los niveles absolutos son de un simulador simplificado —da +0,243R donde el de produccion da
++0,099R— pero **a spread 0 reproduce exactamente las 440 llenadas**, asi que la degradacion
+relativa es la medida buena.)
+
+**Y la mediana medida en XM Standard la primera noche: USDJPY 5,20p · AUDJPY 6,30p · EURJPY
+8,00p · GBPJPY 9,30p.** Son la franja mala del domingo, no la semana; pero ni de lejos estan en
+el rango donde esto paga.
+
+**Lo que se sigue:** `afinado` necesita un spread de **~1 pip o menos** para no perder. Una
+cuenta Standard de XM en cruces del yen no lo da. Lo daria una Zero/Raw —~0,2 pips mas comision,
+que sobre nuestros lotes son ~1 pip efectivo— y esa es la diferencia entre que esto funcione o no.
+
+**Esto invalida el numero de todas las medidas anteriores del proyecto**, no solo la de
+`afinado`: el simulador es el mismo en todas. No invalida las COMPARACIONES entre variantes,
+que se hicieron todas con el mismo sesgo.
+
+---
+
 ## QUÉ HAY MEDIDO AHORA MISMO
 
 **EL BACKTEST DE `div-video` PUEDE ESTAR EQUIVOCADO, y hay que mirarlo.** Se grabó como prueba
