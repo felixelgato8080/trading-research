@@ -170,6 +170,13 @@ export type Objetivo = "LIQUIDEZ" | "FIJO";
 export type Stop = "ZONA" | "EXTREMO";
 
 export interface AjustesEntrada {
+  /**
+   * El spread en precio, para saber cuando se llena de verdad una compra limitada.
+   *
+   * Opcional y por defecto CERO, para no mover ningun numero ya medido sin que se note. Lo que
+   * cambia no es el dinero —eso lo lleva `coste`— sino QUE operaciones llegan a existir.
+   */
+  spread?: number;
   /** Ajustes de huecos y bloques en la temporalidad menor. */
   zona: AjustesSMC;
   /** Cuantas velas de la temporalidad menor se espera a que aparezca una zona. */
@@ -281,10 +288,17 @@ export function señales(
     if (largo ? objetivo <= entrada : objetivo >= entrada) continue;
 
     // La vuelta a la zona, despues de que la zona se conozca.
+    //
+    // UNA COMPRA LIMITADA SE LLENA CUANDO EL ASK LLEGA AL NIVEL, y las velas son BID: el bid
+    // tiene que bajar `spread` MAS de lo que la vela aparenta. Una venta limitada, en cambio,
+    // se llena contra el bid y la vela vale tal cual. Sin esta correccion los largos entraban
+    // en sitios donde el broker no habria llenado, que es la mitad optimista del mismo fallo
+    // que tenia `simular` con los stops de los cortos.
+    const nivelEntrada = largo ? entrada - (ajEnt.spread ?? 0) : entrada;
     const desde = Math.max(zona.conocidoEn + 1, j0);
     for (let j = desde; j < Math.min(menores.length, desde + ajEnt.esperaEntrada); j += 1) {
       const v = menores[j]!;
-      if (largo ? v.l > entrada : v.h < entrada) continue;
+      if (largo ? v.l > nivelEntrada : v.h < nivelEntrada) continue;
       out.push({
         i: j, direccion: largo ? "LARGO" : "CORTO", entrada, stop, objetivo, rr, desde,
       });

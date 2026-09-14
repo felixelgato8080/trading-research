@@ -271,17 +271,52 @@ export type ExtremoEntrada = "MINIMO" | "MAXIMO" | "NINGUNO";
  * Por defecto se deduce del lado de la señal, que para una señal de zona es lo mismo y deja la
  * convencion de siempre: cuando no se sabe el orden dentro de la vela, gana lo malo.
  */
+/**
+ * EL PRECIO ES UN CANAL, NO UNA LINEA, y eso cambia QUE OPERACIONES ganan.
+ *
+ * Las velas son BID —las de MT5 y las de cualquier fuente de forex— pero el broker no ejecuta
+ * todo contra el bid:
+ *
+ *     compra limitada       ask <= nivel       ->  bid <= nivel - spread
+ *     venta limitada        bid >= nivel       ->  igual que la vela
+ *     stop de un largo      bid <= stop        ->  igual que la vela
+ *     stop de un CORTO      ask >= stop        ->  bid >= stop - spread
+ *     objetivo de un corto  ask <= objetivo    ->  bid <= objetivo - spread
+ *
+ * Restar el spread al RESULTADO —que es lo que hace `coste`— es correcto para el dinero, y la
+ * aritmetica sale bien: el spread se paga una vez. Lo que NO captura es que mueve los niveles.
+ * Un corto con stop de 7 pips y spread de 5 tiene el stop REAL a dos pips de la entrada.
+ *
+ * Medido el 13 sep sobre las 440 operaciones de `afinado`, aplicandolo al camino:
+ *
+ *     spread 0 (lo de antes)   47% acierto   +0,243R   +107R
+ *     spread 2 pips            34%           -0,113R    -49R
+ *     spread 5 pips            22%           -0,407R   -171R
+ *
+ * El acierto se desploma y el numero de operaciones apenas cambia: no es que deje de entrar, es
+ * que entra igual y pierde.
+ *
+ * POR DEFECTO VA A CERO para no cambiar en silencio ningun numero ya medido. Quien quiera la
+ * verdad lo pasa, y entonces sabe que la esta pidiendo.
+ */
 export function simular(
   velas: Vela[],
   s: SeñalZona,
   coste: number,
   maxVelas: number,
   extremoEntrada?: ExtremoEntrada,
+  spread = 0,
 ): ResultadoZona | null {
   const largo = s.direccion === "LARGO";
   const riesgo = Math.abs(s.entrada - s.stop);
   if (!(riesgo > 0)) return null;
   const extremo: ExtremoEntrada = extremoEntrada ?? (largo ? "MINIMO" : "MAXIMO");
+
+  // Los tres niveles, pasados a lo que la VELA (bid) tiene que tocar para que el broker
+  // ejecute. Con spread 0 son los de siempre, byte a byte.
+  const nEntrada = largo ? s.entrada - spread : s.entrada;
+  const nStop = largo ? s.stop : s.stop - spread;
+  const nObjetivo = largo ? s.objetivo : s.objetivo - spread;
 
   const v0 = velas[s.i];
   if (!v0) return null;
@@ -297,9 +332,9 @@ export function simular(
   // control ya no compara las mismas barras. Con "NINGUNO" se entro al cierre y no hay hueco
   // que aplicar.
   const entradaReal =
-    extremo === "MINIMO" ? Math.min(s.entrada, v0.o)
-    : extremo === "MAXIMO" ? Math.max(s.entrada, v0.o)
-    : s.entrada;
+    extremo === "MINIMO" ? Math.min(nEntrada, v0.o)
+    : extremo === "MAXIMO" ? Math.max(nEntrada, v0.o)
+    : nEntrada;
 
   // PERO SI EL HUECO SE PASO TAMBIEN DEL STOP, la operacion no existe. Quedarias largo con el
   // stop POR ENCIMA de tu propio llenado, que no es una operacion sino un sinsentido: cuando la
@@ -308,7 +343,7 @@ export function simular(
   // Se descarta en vez de contarla como perdida porque nadie mandaria esa orden: al abrir el
   // mercado ahi, el planteamiento entero se cae. Y contarla era CARO — 14 de 790 operaciones,
   // varias de ellas declarando mas de 25R de beneficio inventado, que se comian la media.
-  if (largo ? entradaReal <= s.stop : entradaReal >= s.stop) return null;
+  if (largo ? entradaReal <= nStop : entradaReal >= nStop) return null;
 
   // EL RIESGO SIGUE SIENDO EL PLANEADO, no el que resulta del llenado. Es sobre el planeado
   // sobre el que se dimensiona la posicion, porque es el unico que se conoce al mandar la orden.
@@ -332,14 +367,14 @@ export function simular(
       return pasada ? v.o : nivel;
     };
 
-    const tocaStop = largo ? usaMin && v.l <= s.stop : usaMax && v.h >= s.stop;
+    const tocaStop = largo ? usaMin && v.l <= nStop : usaMax && v.h >= nStop;
     if (tocaStop) {
-      const salida = conHueco(s.stop, true);
+      const salida = conHueco(nStop, true);
       return { r: neto(salida), velas: j - s.i, motivo: "STOP", rr: s.rr, entradaReal, salida };
     }
-    const tocaObj = largo ? usaMax && v.h >= s.objetivo : usaMin && v.l <= s.objetivo;
+    const tocaObj = largo ? usaMax && v.h >= nObjetivo : usaMin && v.l <= nObjetivo;
     if (tocaObj) {
-      const salida = conHueco(s.objetivo, false);
+      const salida = conHueco(nObjetivo, false);
       return { r: neto(salida), velas: j - s.i, motivo: "OBJETIVO", rr: s.rr, entradaReal, salida };
     }
     if (maxVelas > 0 && j - s.i >= maxVelas) {

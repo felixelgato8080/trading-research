@@ -231,9 +231,34 @@ relativa es la medida buena.)
 8,00p · GBPJPY 9,30p.** Son la franja mala del domingo, no la semana; pero ni de lejos estan en
 el rango donde esto paga.
 
-**Lo que se sigue:** `afinado` necesita un spread de **~1 pip o menos** para no perder. Una
-cuenta Standard de XM en cruces del yen no lo da. Lo daria una Zero/Raw —~0,2 pips mas comision,
-que sobre nuestros lotes son ~1 pip efectivo— y esa es la diferencia entre que esto funcione o no.
+### ARREGLADO EL 13 SEP, y esta es la medida buena
+
+`simular()` y `señales()` aceptan `spread` (por defecto **0**, para no mover en silencio ningun
+numero ya medido). Corrigen los tres niveles a lo que la vela BID tiene que tocar. Con el
+simulador de produccion sobre las mismas 440:
+
+| spread | ops | acierto | esperanza | sigma |
+|---|---|---|---|---|
+| 0 (bruto) | 440 | 51% | +0,233R | 3,9σ |
+| 1 pip | 429 | 45% | +0,095R | 1,6σ |
+| **1,5 pips** | 429 | 41% | **+0,031R** | 0,5σ |
+| 2 pips | 428 | 36% | −0,120R | −2,1σ |
+| 3 pips | 419 | 31% | −0,234R | −4,2σ |
+| **el medido en XM (5,2-9,3)** | 235 | 22% | **−0,470R** | **−7,2σ** |
+
+**El punto de equilibrio esta en ~1,6 pips.** Por debajo paga; por encima no, y deprisa.
+
+Detalle que importa para no exagerar el hallazgo: a 1 pip la correccion del camino apenas mueve
+nada (+0,095R contra el +0,099R que daba el coste plano). **El daño no lo hace la correccion:
+lo hace el spread de verdad.** La correccion solo impide seguir creyendo que 5 pips cuestan lo
+mismo que 1.
+
+Y con los spreads medidos solo llegan a llenarse **235 de 440**: con el ask 5-9 pips por encima,
+la mitad de las compras limitadas no se ejecutan nunca.
+
+**Lo que se sigue:** `afinado` necesita **~1,5 pips o menos**. Una cuenta Standard de XM en
+cruces del yen da 5-9. Lo daria una Zero/Raw —~0,2 pips mas comision, que sobre nuestros lotes
+son ~1 pip efectivo— y esa es literalmente la diferencia entre que esto funcione o no.
 
 **Esto invalida el numero de todas las medidas anteriores del proyecto**, no solo la de
 `afinado`: el simulador es el mismo en todas. No invalida las COMPARACIONES entre variantes,
