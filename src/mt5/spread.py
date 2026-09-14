@@ -34,6 +34,20 @@ mas. Mezclar muestras de dos cuentas da un numero que no es el de ninguna de las
 Por eso cada muestra lleva el servidor y el login, y el informe separa por servidor. Si cambias
 de cuenta a mitad, se ve en vez de disolverse en la media.
 
+LAS MUESTRAS ENTRE EL 14 Y EL 15 DE SEPTIEMBRE ESTAN CONTAMINADAS
+----------------------------------------------------------------
+El 14 sep el terminal cambio a una cuenta donde conviven `EURUSD` (grupo Standard, 2,10 pips y
+trade_mode DESACTIVADO) y `EURUSD#` (Ultra Low, 1,10, el que se opera). La resolucion de nombre
+de este fichero era una copia VIEJA de la de `simbolos.py` y prefirio el pelado, asi que durante
+ese dia midio el grupo que no se opera, al doble de spread.
+
+No se borra ninguna muestra —una medida tomada es un hecho de ese instante— pero conviene saber
+que las de esa ventana describen otro instrumento. Se distinguen porque NO tienen el campo
+`simbolo`, que existe desde el arreglo.
+
+Que costo: con esas muestras parecia que solo 1 de 17 senales de `video` pasaba el tope de peaje,
+cuando con el spread de verdad pasaban 9. Un perfil de coste inflado descarta operaciones buenas.
+
 LOS TICKS VIEJOS SE DESCARTAN Y SE CUENTAN
 ------------------------------------------
 Con el mercado cerrado el terminal sigue devolviendo el ultimo tick del viernes. Guardarlo como
@@ -52,6 +66,7 @@ from datetime import datetime, timezone
 import MetaTrader5 as mt5
 
 from cuenta import exigir_cuenta
+from simbolos import operables_de, simbolo_broker
 
 PARES = ["EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD",
          "EURJPY", "EURGBP", "GBPJPY", "AUDJPY", "CADJPY"]
@@ -138,6 +153,9 @@ def barrido(nombres, servidor, login, vistos, desfase):
         vistos.add(clave)
         muestras.append({
             "par": p,
+            # DE QUE SIMBOLO SALIO. Sin esto no se puede saber despues si una muestra vieja es
+            # del grupo que se opera o del otro, y los dos difieren en el DOBLE de spread.
+            "simbolo": nombre,
             # EN UTC DE VERDAD, no en hora del servidor. El desfase se guarda al lado para que
             # una muestra vieja siga siendo interpretable aunque cambie el horario de verano.
             "t": int(t.time) - desfase,
@@ -165,10 +183,24 @@ def tomar_muestras(servidor, login, veces, intervalo):
     y aportan el 78% del resultado, con un margen de solo ~1,3 pips sobre el coste supuesto.
     Ahi es donde hace falta resolucion.
     """
-    vivos = {s.name for s in mt5.symbols_get()}
+    # Se piden los simbolos UNA vez y se reparten: `symbols_get` recorre los 1.645 del broker.
+    _todos = mt5.symbols_get() or []
+    vivos = {s.name for s in _todos}
+    operables = operables_de(_todos)
     nombres = {}
     for p in PARES:
-        nombres[p] = p if p in vivos else next((s for s in vivos if s.startswith(p)), None)
+        # MANDA EL OPERABLE, igual que en velas.py y en el ejecutor.
+        #
+        # Esta linea tenia su propia copia de la resolucion —la vieja, que prefiere el nombre
+        # pelado— y por eso sobrevivio al arreglo del 14 sep. Resultado: desde el cambio de
+        # cuenta el muestreador midio `EURUSD` (grupo Standard, 2,10 pips y ni siquiera
+        # operable) mientras el ejecutor operaba `EURUSD#` (Ultra Low, 1,20).
+        #
+        # El perfil de spread es con lo que se decide si una estrategia paga el peaje, asi que
+        # medir el doble de lo que se paga descarta operaciones buenas. Se vio el 14 sep: con
+        # las muestras contaminadas parecia que solo 1 de 17 señales de `video` pasaba el tope,
+        # y con el spread de verdad pasaban 9.
+        nombres[p] = simbolo_broker(p + "=X", vivos, operables)
 
     # SE SELECCIONAN TODOS ANTES DE LEER NINGUNO. `symbol_select` mete el simbolo en el Market
     # Watch, pero su primera cotizacion no esta disponible en la misma llamada: en la primera
