@@ -207,7 +207,7 @@ spread bajo entre un 17% y un 68% segun el par, y con eso se pusieron a ejecutar
 en vez de uno. Se escribe la prediccion nueva aqui, con fecha, y **no se borra la vieja**: moverla
 seria justo lo que estas secciones existen para impedir.
 
-**Lo que ejecuta ahora** (todo sobre **169363039**, demo, **riesgo 0,5%**, tope diario 6%, tope 12 posiciones):
+**Lo que ejecuta ahora** (todo sobre **169363039**, demo, tope diario 6%, tope 12 posiciones; el riesgo va POR REGISTRO, ver abajo):
 
 | etiqueta | registro | que es | min-stop |
 |---|---|---|---|
@@ -358,6 +358,37 @@ diario. Lo que SI se comparte es el margen y el saldo sobre el que se calculan l
 porcentaje — y ahi estaba el motivo real para separarlas: con las dos cosas en la misma cuenta,
 dentro de un mes no se podria distinguir "mi estrategia funciono" de "el saldo se movio por el
 otro bot".
+
+### EL RIESGO ES DE CADA ESTRATEGIA, no de la cuenta (15 sep)
+
+**Las dos guardas de tamaño muerden por extremos OPUESTOS**, asi que un solo riesgo global no
+puede satisfacer a las cuatro:
+
+| | efecto | a quien le pasa |
+|---|---|---|
+| stops ANCHOS | lote pequeño -> cae por debajo del **minimo del broker** | `sep40`, mediana 28,5 pips: perdia el **17%** de sus señales a 0,25% |
+| stops CORTOS | lote grande -> un hueco de 10 pips arriesga mucho mas que el stop -> salta la **guarda de hueco por posicion** | `video`, stops de 1-3 pips: **10 rechazos en un dia** al subir a 0,5% |
+
+Subir el riesgo a 0,5% arreglo lo primero y rompio lo segundo el mismo dia. Los 10 rechazos de
+`video` fueron el motivo numero uno de la jornada, mas que el peaje (4) y el min-stop (2) juntos:
+
+    video:EURUSD  stop 1,3p  ->  arriesga 37,88 en un hueco, el tope son 20,00
+    video:NZDUSD  stop 1,5p  ->  32,47
+    video:USDCAD  stop 2,1p  ->  23,92
+
+A 0,25% serian 19,23 / 16,67 / 11,90 y las tres pasan. **El punto de corte es
+`stop >= riesgo_dinero / 2`**: a 0,25% eso son 1,25 pips y a 0,5% son 2,50.
+
+Asi que cada estrategia lleva el riesgo que le cabe por su escala de stop:
+
+| | riesgo | por que |
+|---|---|---|
+| `sep40`, `ul2`, `pbv1` | **0,5%** | stops de 8 a 45 pips: el lote minimo les apretaba a 0,25% y la guarda de hueco no les llega ni de lejos |
+| `video` | **0,25%** | stops de 1 a 6 pips: el lote minimo no les afecta nunca y la guarda de hueco les mata a 0,5% |
+
+No es optimizar resultados: es que la misma guarda signifique lo mismo en las cuatro. Y el
+informe del ejecutor imprime ahora el riesgo y los filtros de cada registro, para que un rechazo
+se entienda sin abrir el .cmd.
 
 **Lo que declararia muerto al conjunto:** esperanza negativa sobre 200 operaciones cerradas. A 200
 al mes, **un mes**.

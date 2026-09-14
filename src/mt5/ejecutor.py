@@ -871,6 +871,9 @@ def main():
     ap.add_argument("--peaje", default="",
                     help="tope de peaje por registro: 'video=0.5'. Lo que no aparezca usa "
                          "--tope-peaje")
+    ap.add_argument("--riesgo-por-registro", default="",
+                    help="riesgo por registro en %% del saldo: 'video=0.25'. Lo que no aparezca "
+                         "usa --riesgo")
     ap.add_argument("--desvio-puntos", type=int, default=20,
                     help="deslizamiento maximo aceptado en una orden a mercado, en puntos")
     ap.add_argument("--rr-minimo-mercado", type=float, default=1.0,
@@ -1084,6 +1087,7 @@ def main():
               f"({arriesgado / cuenta.balance * 100:.1f}% del saldo)")
 
     ahora = int(time.time())
+    # Solo el valor por DEFECTO: dentro del bucle cada registro resuelve el suyo.
     riesgo_dinero = cuenta.balance * args.riesgo / 100
     tope = cuenta.balance * args.tope_hueco / 100
     suya = cuenta.balance * args.tope_hueco_posicion / 100
@@ -1152,12 +1156,33 @@ def main():
     # operacion y no el de un muestreo que quiza cayo en otro minuto.
     peaje_de = por_registro(args.peaje, "--peaje", "fraccion")
 
+    # EL RIESGO TAMBIEN ES DE CADA ESTRATEGIA, y no por gusto: las dos guardas de tamaño muerden
+    # por extremos OPUESTOS y un solo numero no puede satisfacer a las dos.
+    #
+    #   stops ANCHOS  -> lote pequeño -> se cae por debajo del MINIMO del broker. Le paso a
+    #                    `sep40` (mediana 28,5 pips): a 0,25% perdia el 17% de sus señales.
+    #   stops CORTOS  -> lote grande  -> un hueco de 10 pips arriesga mucho mas que el stop, y
+    #                    salta la guarda de hueco por posicion. Le paso a `video` (stops de 1-3
+    #                    pips): al subir a 0,5% el 15 sep, 10 rechazos en un dia, mas que el
+    #                    peaje y el min-stop juntos.
+    #
+    # Medido: con stop de 1,3 pips, a 0,5% una sola posicion arriesga 37,88 en un hueco y el
+    # tope son 20,00; a 0,25% son 18,94 y pasa. El punto de corte es stop >= riesgo_dinero / 2.
+    #
+    # Asi que cada estrategia lleva el riesgo que le cabe por su escala de stop. No es optimizar
+    # resultados: es que la misma guarda signifique lo mismo en las cuatro.
+    riesgo_de = por_registro(args.riesgo_por_registro, "--riesgo-por-registro", "porcentaje")
+
     for etiqueta, ruta, reg in registros:
         min_stop = min_stop_de.get(etiqueta, args.min_stop_pips)
         tope_peaje = peaje_de.get(etiqueta, args.tope_peaje)
+        riesgo_dinero = cuenta.balance * riesgo_de.get(etiqueta, args.riesgo) / 100
         pendientes = reg.get("pendientes", [])
+        # EL INFORME DICE CON QUE FILTROS VA CADA UNO. Con min-stop, peaje y riesgo distintos por
+        # registro, un informe que no los enseñe obliga a abrir el .cmd para entender un rechazo.
         print(f"\n-- {etiqueta or os.path.basename(ruta)}: {len(pendientes)} pendiente(s) "
-              f"en el registro")
+              f"en el registro · riesgo {riesgo_dinero:.2f} · min-stop {min_stop:.0f}p"
+              + (f" · peaje<={tope_peaje * 100:.0f}%" if tope_peaje < 1 else ""))
         poner, saltar = que_hacer(
             pendientes, ya_puestas, ahora, args.tope_posiciones, vivas, etiqueta,
         )

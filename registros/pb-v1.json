@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "pullback",
   "inicio": "2026-09-14T05:48:59.582Z",
-  "ultima": "2026-09-14T19:56:33.663Z",
-  "pasadas": 95,
+  "ultima": "2026-09-14T21:55:11.860Z",
+  "pasadas": 119,
   "ajustes": {
     "version": "V1",
     "fuente": "MT5 #",
@@ -189,15 +189,37 @@
       "salida": 0.71264,
       "r": -2.461182069443849,
       "motivo": "STOP"
+    },
+    {
+      "par": "EURJPY=X",
+      "direccion": "CORTO",
+      "entrada": 178.273,
+      "stop": 178.3107716813663,
+      "objetivo": 178.19745663726738,
+      "rr": 2,
+      "apuntada": "2026-09-14T20:50:11.200Z",
+      "tSeñal": 1789418700,
+      "caducaEn": 1789419000,
+      "tipo": "MERCADO",
+      "velasDeRetraso": 0,
+      "abierta": "2026-09-14T20:55:11.173Z",
+      "tEntrada": 1789419000,
+      "entradaReal": 178.281,
+      "marca": 24.961894253216006,
+      "cerrada": "2026-09-14T21:10:11.081Z",
+      "tSalida": 1789419600,
+      "salida": 178.19745663726738,
+      "r": 1.3150458474674267,
+      "motivo": "OBJETIVO"
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1789415400,
-    "GBPUSD=X": 1789415400,
-    "USDJPY=X": 1789415400,
-    "EURJPY=X": 1789415400,
-    "GBPJPY=X": 1789415400,
-    "AUDUSD=X": 1789415400
+    "EURUSD=X": 1789422300,
+    "GBPUSD=X": 1789422600,
+    "USDJPY=X": 1789422600,
+    "EURJPY=X": 1789422600,
+    "GBPJPY=X": 1789422600,
+    "AUDUSD=X": 1789422600
   },
   "discrepancias": []
 }
