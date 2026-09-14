@@ -321,6 +321,34 @@ def nuestras_posiciones():
     return [p for p in todas if p.magic == MAGIA]
 
 
+def spread_en(sym, t_servidor, ventana=30):
+    """
+    El spread que habia EN EL INSTANTE de un llenado, sacado del historico de ticks.
+
+    POR QUE NO BASTA CON EL DE CUANDO SE PUSO LA ORDEN. Una limitada puede pasar cinco horas
+    esperando; el spread de cuando se poso no tiene por que parecerse al de cuando el precio
+    volvio a la zona. Y el que decide si esa operacion paga es el segundo.
+    
+    No hace falta un proceso en vivo vigilando: MT5 guarda el historico de ticks y se le puede
+    preguntar despues. Misma informacion, sin un proceso mas que mantener.
+
+    `t_servidor` es el tiempo TAL COMO LO DA MT5 (hora del servidor), porque `copy_ticks_range`
+    tambien interpreta sus fechas en hora del servidor. Convertirlo a UTC aqui seria pedirle una
+    ventana tres horas movida.
+    """
+    desde = datetime.fromtimestamp(t_servidor - ventana, timezone.utc)
+    hasta = datetime.fromtimestamp(t_servidor + ventana, timezone.utc)
+    ticks = mt5.copy_ticks_range(sym, desde, hasta, mt5.COPY_TICKS_INFO)
+    if ticks is None or len(ticks) == 0:
+        return None
+    pip = 0.01 if "JPY" in sym else 0.0001
+    # El MAS CERCANO al instante, no la media de la ventana: lo que importa es el de ese tick.
+    mejor = min(ticks, key=lambda x: abs(int(x["time"]) - t_servidor))
+    if mejor["ask"] <= 0 or mejor["bid"] <= 0:
+        return None
+    return round((mejor["ask"] - mejor["bid"]) / pip, 2)
+
+
 def recoger_cerradas(est, dias=14):
     """
     Lo que el broker cerro desde la ultima pasada, leido de SU historial y no del nuestro.
@@ -367,6 +395,7 @@ def recoger_cerradas(est, dias=14):
                 "direccion": "LARGO" if largo else "CORTO",
                 "pedido": pedido, "llenado": entrada.price,
                 "desliz_pips": round((entrada.price - pedido) / pip * (1 if largo else -1), 2),
+                "spread_al_llenar": spread_en(salida.symbol, int(entrada.time)),
                 "t": int(entrada.time), "volumen": entrada.volume,
                 "cuando": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "reconstruido": True,
@@ -518,6 +547,10 @@ def informe_datos(est, cuenta, registros=()):
         if malos:
             print(f"   {len(malos)} de {len(lls)} llenaron PEOR que el limite. Una orden "
                   f"limitada no deberia: mira esas.")
+        sp = sorted(x["spread_al_llenar"] for x in lls if x.get("spread_al_llenar"))
+        if sp:
+            print(f"   spread EN EL INSTANTE del llenado: mediana {sp[len(sp) // 2]:.2f}p · "
+                  f"peor {sp[-1]:.2f}p   ({len(sp)} de {len(lls)} reconstruidos)")
         por_est = {}
         for x in lls:
             por_est.setdefault(x["ident"].split(":")[0], []).append(x["desliz_pips"])
@@ -960,6 +993,8 @@ def main():
         est.setdefault("llenados", []).append({
             "ident": ident, "par": sym, "direccion": "LARGO" if largo else "CORTO",
             "pedido": pedido, "llenado": pos.price_open, "desliz_pips": round(desliz, 2),
+            # EL SPREAD DEL INSTANTE DEL LLENADO, que es el que decide si esa operacion paga.
+            "spread_al_llenar": spread_en(sym, int(pos.time)),
             "t": int(pos.time), "volumen": pos.volume,
             "cuando": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         })

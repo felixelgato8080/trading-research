@@ -157,7 +157,12 @@ async function main(): Promise<void> {
   // En `video` va a 0,1 porque es lo que se cuenta. En `afinado` va a 1 porque es lo que se
   // midio: el stop pasa de 5,3 a 9,4 pips y el peaje del spread del 22% al 13% del riesgo. No
   // cambia el R:R —el objetivo se mide en R, asi que se aleja igual— solo el peso del coste.
-  const colchon = modo === "afinado" ? 1 : 0.1;
+  // Y SE PUEDE PEDIR OTRO CON `--colchon=`. Medido el 14 sep sobre precios de XM: pasar de 1 a 2
+  // DUPLICA la tolerancia al spread —el equilibrio se va de ~0,9 a ~2,0 pips— sin costar nada de
+  // bruto (+0,170R contra +0,175R). El mecanismo es obvio y no es ajuste a los datos: stop mas
+  // ancho, el mismo spread pesa menos. Con el spread real medido (2,7-3,8 pips) eso lleva la
+  // esperanza de -0,423R a -0,175R.
+  const colchon = num("colchon", modo === "afinado" ? 1 : 0.1);
 
   const zona: AjustesSMC = {
     minHueco: 0.2, minEmpuje: 1, vigencia: 60, esperaBloque: 20, colchon,
