@@ -195,7 +195,20 @@ async function main(): Promise<void> {
     modo,
     ...(txt("velas") ? { fuente: "MT5" } : {}),
     div: {
-      periodoRsi: 14, confirmacion: 2, umbralAlto: 70,
+      // EL PERIODO SE PUEDE PEDIR. Medido el 14 sep sobre 63 dias de velas de XM con el spread
+      // real, 15m/5m y stop minimo de 18 pips, LOS SEIS PERIODOS PROBADOS SON POSITIVOS:
+      //
+      //     5   2,51 ops/dia   51%   +0,227R   2,7σ   436 pips/mes
+      //     7   2,25          49%   +0,205R   2,3σ   358
+      //     9   1,87          52%   +0,255R   2,6σ   369
+      //    14   1,11          57%   +0,448R   3,5σ   390
+      //    21   0,59          51%   +0,252R   1,3σ   115
+      //    28   0,22          57%   +0,527R   1,7σ    88
+      //
+      // Que el borde no dependa del periodo es lo que lo hace creible. El 14 es el unico que
+      // replica bien en la otra fuente (Yahoo: +0,249R contra +0,057R del 5), y el unico con
+      // las dos direcciones equilibradas; el 5 da 2,3 veces mas operaciones y mas pips al mes.
+      periodoRsi: num("periodorsi", 14), confirmacion: 2, umbralAlto: 70,
       minSeparacion: 3, maxSeparacion: 60, exigirFueraDelCanal: true,
     },
     ent: modo === "afinado"

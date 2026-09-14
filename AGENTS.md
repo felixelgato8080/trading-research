@@ -197,6 +197,51 @@ probada, está esperando.
 
 ---
 
+## LA VIA QUE SI MULTIPLICA OPERACIONES: el periodo del RSI (14 sep)
+
+Felix pidio buscar mas operaciones sin renunciar a los pips. Se barrieron dos dimensiones que
+no se habian tocado.
+
+**LAS TEMPORALIDADES: una de siete funciona.** Sobre 63 dias de velas de XM, colchon 2:
+
+| mayor/menor | mejor esperanza |
+|---|---|
+| 5m/1m | −0,589R (−14,8σ) |
+| 15m/1m | −0,507R |
+| **15m/5m con min 18p** | **+0,448R (3,5σ), 390 pips/mes** |
+| 30m/5m | −0,425R |
+| 30m/15m | −0,505R |
+| 1h/15m | −0,228R |
+| 1h/5m | −0,504R |
+
+De 28 celdas solo una region es positiva, y es la que ya se usaba. Dentro de 15m/5m la curva se
+comporta (−0,270 → +0,083 → **+0,448** → +0,294): un pico limpio, no un punto suelto.
+
+**EL PERIODO DEL RSI: los seis probados son positivos.** 15m/5m, min 18 pips:
+
+| periodo | ops/dia | acierto | esperanza | sigma | pips/mes |
+|---|---|---|---|---|---|
+| **5** | **2,51** | 51% | +0,227R | 2,7σ | **436** |
+| 7 | 2,25 | 49% | +0,205R | 2,3σ | 358 |
+| 9 | 1,87 | 52% | +0,255R | 2,6σ | 369 |
+| **14** | 1,11 | 57% | **+0,448R** | **3,5σ** | 390 |
+| 21 | 0,59 | 51% | +0,252R | 1,3σ | 115 |
+| 28 | 0,22 | 57% | +0,527R | 1,7σ | 88 |
+
+**Que el borde no dependa del periodo es lo que lo hace creible.** El 5 da 2,3 veces mas
+operaciones Y mas pips al mes, y solo comparte el 44% de sus entradas con el 14.
+
+**Pero no esta igual de validado.** En la otra fuente (Yahoo) el 5 da +0,057R contra +0,249R del
+14, y sus cortos son flojos (+0,103R contra +0,323R de los largos). El 14 es el unico robusto en
+las dos fuentes y con las dos direcciones equilibradas.
+
+**Se ejecutan LOS DOS** —~2,5 operaciones al dia en vez de 0,93— y el ejecutor impide que la
+misma señal entre dos veces: compara la identidad SIN la etiqueta, porque con dos periodos
+corriendo el 44% de las entradas coinciden y poner las dos doblaria el riesgo sobre una idea.
+
+**Combinar periodos en un solo registro NO ayuda** (7+14 da 280 pips/mes contra 436 del 5 solo):
+diluye. Se ejecutan como registros separados, que ademas los deja comparables en vivo.
+
 ## LA MEDIDA BUENA, DESPUES DE REVISARLO TODO (14 sep)
 
 Felix no se creyo el analisis anterior y pidio revisar todas las variables. Tenia razon: habia

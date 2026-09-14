@@ -726,8 +726,12 @@ def main():
     for spec in args.registro:
         etiqueta, _, ruta = spec.partition(":")
         # En Windows la ruta lleva dos puntos ("C:/..."), asi que solo se parte por el PRIMERO
-        # y aun asi hay que distinguir "video:C:/x" de "C:/x" a secas.
-        if not ruta or (len(etiqueta) == 1 and etiqueta.isalpha()):
+        # y aun asi hay que distinguir "video:C:/x" de "C:/x" a secas. Lo que identifica una
+        # letra de unidad no es que tenga una letra: es que despues de los dos puntos venga una
+        # barra. Con la regla anterior, una etiqueta de una sola letra se tomaba por unidad y la
+        # ruta entera se iba al traste.
+        esUnidad = len(etiqueta) == 1 and etiqueta.isalpha() and ruta[:1] in ("/", "\\")
+        if not ruta or esUnidad:
             etiqueta, ruta = "", spec
         if not os.path.exists(ruta):
             raise SystemExit(f"no existe el registro {ruta}")
@@ -765,8 +769,37 @@ def main():
     # una orden caducada o llenada y cerrada ya no esta, y su señal tampoco vuelve.
     ya_puestas = set(est["puestas"].keys())
 
+    ahora_seg = int(time.time())
     print(f"en el broker: {len(ordenes)} ordenes nuestras esperando · "
           f"{len(posiciones)} posiciones nuestras abiertas")
+
+    # LA CADUCIDAD NO LA LLEVA EL BROKER, aunque el diseño lo diera por hecho.
+    #
+    # Se mandaba con ORDER_TIME_SPECIFIED, XM la rechaza y el reintento cae a GTC: la orden
+    # queda VIVA PARA SIEMPRE. Se vio el 14 sep en una orden de prueba, con `time_expiration`
+    # a cero. Una limitada que debia morir a las cinco horas podria llenarse tres dias despues,
+    # sobre una señal que ya no existe, y ensuciar el registro con una operacion que la
+    # estrategia nunca habria tomado.
+    #
+    # Asi que se retiran aqui. Se mira `caducaEn` de lo apuntado, que es la fuente de verdad.
+    caducadas = 0
+    for o in ordenes:
+        guardada = est["puestas"].get(o.comment)
+        if guardada is None:
+            continue
+        # La vigencia sale del propio registro: `caducaEn` se guardo al ponerla.
+        limite = guardada.get("caducaEn")
+        if limite is None or ahora_seg < limite:
+            continue
+        if args.enserio:
+            r = mt5.order_send({"action": mt5.TRADE_ACTION_REMOVE, "order": o.ticket})
+            if r is not None and r.retcode == mt5.TRADE_RETCODE_DONE:
+                caducadas += 1
+        else:
+            caducadas += 1
+    if caducadas:
+        print(f"   {caducadas} orden(es) retirada(s) por caducar. El broker no respeta la"
+              f" caducidad que se le manda, asi que la lleva el ejecutor.")
 
     # ---- Lo que el broker cerro mientras no miraba -------------------------------------------
     cerradas = recoger_cerradas(est)
@@ -845,6 +878,20 @@ def main():
     # registro creeria que el cupo sigue como estaba y se pasaria del tope de posiciones.
     vivas = len(ordenes) + len(posiciones)
 
+    # LA MISMA SEÑAL NO SE PONE DOS VECES AUNQUE VENGA DE DOS REGISTROS.
+    #
+    # Con varias configuraciones corriendo a la vez —el RSI de periodo 14 y el de 5, por
+    # ejemplo— el 44% de las entradas coinciden: mismo par, misma vela, mismo nivel. La
+    # identidad lleva la etiqueta delante, asi que el ejecutor las veria como dos operaciones
+    # distintas y pondria las dos, doblando el riesgo sobre una sola idea.
+    #
+    # Se comparan SIN la etiqueta. La primera que llega se queda con ella.
+    def sinEtiqueta(ident: str) -> str:
+        partes = ident.split(":")
+        return ":".join(partes[-2:]) if len(partes) > 2 else ident
+
+    yaLaIdea = {sinEtiqueta(k) for k in est["puestas"]}
+
     for etiqueta, ruta, reg in registros:
         pendientes = reg.get("pendientes", [])
         print(f"\n-- {etiqueta or os.path.basename(ruta)}: {len(pendientes)} pendiente(s) "
@@ -856,6 +903,10 @@ def main():
             print(f"   - {ident:<28} {motivo}")
         for p in poner:
             ident = identidad(p["par"], p["tSeñal"], etiqueta)
+            idea = sinEtiqueta(ident)
+            if idea in yaLaIdea:
+                print(f"   - {ident:<28} esa misma señal ya esta puesta desde otro registro")
+                continue
             sym = simbolo_broker(p["par"], vivos)
             if sym is None:
                 print(f"   ! {ident:<28} el broker no tiene ese par")
@@ -1014,6 +1065,7 @@ def main():
             puestas += 1
             vivas += 1
             ya_puestas.add(ident)
+            yaLaIdea.add(idea)
             abiertas_divisa.append((sym, p["direccion"], riesgo_dinero))
             if args.enserio:
                 est["puestas"][ident] = {
@@ -1027,7 +1079,7 @@ def main():
                     "spread_pips": None if spread_pips is None else round(spread_pips, 2),
                     "peaje": None if pj is None else round(pj, 3),
                     "puesta": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                    "tSeñal": p["tSeñal"],
+                    "tSeñal": p["tSeñal"], "caducaEn": p.get("caducaEn"),
                 }
 
     # ---- Lo que el broker YA lleno: el dato por el que existe todo esto ----------------------
