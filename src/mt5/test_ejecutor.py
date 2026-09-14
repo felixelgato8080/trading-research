@@ -447,3 +447,41 @@ class MedirAntesDeDecidir(unittest.TestCase):
         t = Tick(1.1, 1.1002, ahora + self.DESFASE)
         self.assertTrue(tick_utilizable(t, self.DESFASE, ahora)[0])
         self.assertFalse(tick_utilizable(t, 0, ahora)[0])
+
+
+class CaducidadDeMercado(unittest.TestCase):
+    """
+    Una orden a mercado no caduca por `caducaEn`, y esto tumbaba TODAS en silencio.
+
+    `caducaEn` significa "cuanto espera la limitada a que el precio vuelva". Para una de mercado
+    no hay espera, y su vigencia de 1 vela hace que `caducaEn` sea tSeñal + 300s — un instante que
+    el reloj YA ha pasado cuando el grabador ve la señal, porque solo la ve tras cerrar su vela.
+    """
+
+    def pendiente(self, tipo=None, t_senal=1000, caduca=1300):
+        p = {"par": "EURUSD=X", "direccion": "LARGO", "entrada": 1.1, "stop": 1.09,
+             "objetivo": 1.12, "rr": 2.0, "tSeñal": t_senal, "caducaEn": caduca}
+        if tipo:
+            p["tipo"] = tipo
+        return p
+
+    def test_una_limitada_pasada_de_fecha_se_descarta(self):
+        poner, saltar = que_hacer([self.pendiente()], set(), 1400, 12, 0)
+        self.assertEqual(poner, [])
+        self.assertIn("caducada", saltar[0][1])
+
+    def test_UNA_DE_MERCADO_NO_SE_DESCARTA_POR_ESO(self):
+        # El caso real: `ahora` (1400) pasa de `caducaEn` (1300) porque el grabador solo ve la
+        # señal cuando su vela cerro. Si esto se descartara, no se pondria ninguna nunca.
+        poner, saltar = que_hacer([self.pendiente("MERCADO")], set(), 1400, 12, 0)
+        self.assertEqual(len(poner), 1)
+        self.assertEqual(saltar, [])
+
+    def test_lo_que_si_acota_la_de_mercado_es_la_frescura(self):
+        # No es que no tenga limite: el limite es otro y se comprueba aparte.
+        self.assertTrue(senal_fresca(1000, 1300, 900)[0])
+        self.assertFalse(senal_fresca(1000, 2500, 900)[0])
+
+    def test_una_limitada_dentro_de_plazo_se_pone(self):
+        poner, _ = que_hacer([self.pendiente()], set(), 1200, 12, 0)
+        self.assertEqual(len(poner), 1)

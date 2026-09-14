@@ -348,7 +348,25 @@ def que_hacer(pendientes, ya_puestas, ahora, tope_posiciones, abiertas_ahora, et
         if ident in ya_puestas:
             saltar.append((ident, "ya estaba puesta"))
             continue
-        if p.get("caducaEn", 0) <= ahora:
+        # LA CADUCIDAD ES DE LAS LIMITADAS, NO DE LAS DE MERCADO. Y esto tumbaba TODAS las de
+        # mercado, en silencio.
+        #
+        # `caducaEn` significa "cuanto espera la orden a que el precio vuelva al nivel", y para
+        # una limitada tiene todo el sentido. Pero una de mercado no espera a nada: entra ya o
+        # no entra. Su `vigencia` en el grabador es 1 vela, asi que `caducaEn` = tSeñal + 300s.
+        #
+        # Y ahi esta el problema: el grabador solo VE la señal cuando su vela ha cerrado, o sea
+        # a partir de tSeñal + 300. Cuando el ejecutor la mira, el reloj ya paso de `caducaEn`
+        # SIEMPRE. Medido el 15 sep: las tres unicas señales que `pbv1` llego a ofrecer se
+        # descartaron asi, y por eso no habia puesto ni una orden desde que se conecto.
+        #
+        # El grabador no lo sufre porque compara TIEMPOS DE VELA (la vela siguiente cae justo en
+        # caducaEn y entra por el <=); el ejecutor compara el RELOJ. Son dos unidades distintas
+        # para la misma palabra.
+        #
+        # Lo que de verdad acota una orden a mercado es la FRESCURA de la señal, que se comprueba
+        # mas abajo con `senal_fresca` y su propio `--frescura-mercado`. Aqui no se toca.
+        if p.get("tipo") != "MERCADO" and p.get("caducaEn", 0) <= ahora:
             saltar.append((ident, "caducada antes de llegar a ponerla"))
             continue
         # UNA SEÑAL APUNTADA CON RETRASO YA NO ES UNA PRUEBA HACIA ADELANTE, pero SI es una
