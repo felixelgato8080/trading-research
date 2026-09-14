@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-08T01:09:08.916Z",
-  "ultima": "2026-09-12T22:59:02.136Z",
-  "pasadas": 26,
+  "ultima": "2026-09-14T04:37:47.495Z",
+  "pasadas": 27,
   "ajustes": {
     "modo": "4h1h",
     "div": {
@@ -38,8 +38,38 @@
   },
   "costeBps": 0.6,
   "vigencia": 60,
-  "pendientes": [],
-  "abiertas": [],
+  "pendientes": [
+    {
+      "par": "GBPJPY=X",
+      "direccion": "LARGO",
+      "entrada": 207.93899536132812,
+      "stop": 207.6299057006836,
+      "objetivo": 208.90499877929688,
+      "rr": 3.1253177992249404,
+      "apuntada": "2026-09-14T04:37:47.495Z",
+      "tSeñal": 1789358400,
+      "caducaEn": 1789574400,
+      "velasDeRetraso": 0
+    }
+  ],
+  "abiertas": [
+    {
+      "par": "GBPUSD=X",
+      "direccion": "LARGO",
+      "entrada": 1.3510956764221191,
+      "stop": 1.3502126455307006,
+      "objetivo": 1.3567968606948853,
+      "rr": 6.4563814563811315,
+      "apuntada": "2026-09-14T04:37:47.495Z",
+      "tSeñal": 1789354800,
+      "caducaEn": 1789570800,
+      "velasDeRetraso": 1,
+      "abierta": "2026-09-14T04:37:47.495Z",
+      "tEntrada": 1789358400,
+      "entradaReal": 1.350584864616394,
+      "marca": 40.907128365098195
+    }
+  ],
   "cerradas": [
     {
       "par": "GBPUSD=X",
@@ -183,18 +213,18 @@
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1789156800,
-    "GBPUSD=X": 1789156800,
-    "USDJPY=X": 1789153200,
-    "USDCHF=X": 1789156800,
-    "AUDUSD=X": 1789156800,
-    "USDCAD=X": 1789156800,
-    "NZDUSD=X": 1789156800,
-    "EURJPY=X": 1789156800,
-    "EURGBP=X": 1789156800,
-    "GBPJPY=X": 1789156800,
-    "AUDJPY=X": 1789156800,
-    "CADJPY=X": 1789156800
+    "EURUSD=X": 1789358400,
+    "GBPUSD=X": 1789358400,
+    "USDJPY=X": 1789358400,
+    "USDCHF=X": 1789358400,
+    "AUDUSD=X": 1789358400,
+    "USDCAD=X": 1789358400,
+    "NZDUSD=X": 1789358400,
+    "EURJPY=X": 1789358400,
+    "EURGBP=X": 1789358400,
+    "GBPJPY=X": 1789358400,
+    "AUDJPY=X": 1789358400,
+    "CADJPY=X": 1789358400
   },
   "discrepancias": []
 }
