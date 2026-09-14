@@ -197,6 +197,44 @@ probada, está esperando.
 
 ---
 
+## LO MEJOR MEDIDO EN TODO EL PROYECTO: la separacion entre picos (14 sep)
+
+De barrer los parametros que quedaban sin tocar. Con `maxSeparacion` en 60 velas de 15m se
+compara un maximo del RSI con otro de **quince horas antes**: contextos de mercado distintos.
+
+| maxSeparacion | ops | acierto | esperanza | sigma | pips/mes |
+|---|---|---|---|---|---|
+| 20 | 21 | 86% | +1,144R | 6,8σ | 285 |
+| **40** | 56 | 64% | **+0,674R** | **5,1σ** | **491** |
+| 60 (lo anterior) | 70 | 57% | +0,448R | 3,5σ | 390 |
+| 100 | 104 | 53% | +0,311R | 2,9σ | 402 |
+
+**Y REPLICA EN LA OTRA FUENTE con la misma forma** (Yahoo, 81 dias): 0,764 / 0,415 / 0,249 /
+0,114 para los mismos cuatro valores.
+
+**La bateria entera sobre 40, y es la primera vez que algo la pasa completa:**
+
+| control | resultado |
+|---|---|
+| todas | 56 ops, 64%, **+0,674R, 5,1σ** |
+| 1a / 2a mitad del calendario | +0,709 / +0,640 — **casi identicas** |
+| largos / cortos | +0,622 (4,2σ) / +0,866 (3,1σ) — **las dos** |
+| USDJPY / GBPJPY / EURJPY / AUDJPY | +0,716 / +0,924 / +0,343 / +0,503 — **los cuatro** |
+| sin el mejor par | 35 ops, +0,524R, 3,0σ |
+| con RSI de 5 | 127 ops, +0,308R, 3,3σ |
+
+En produccion: `--maxsep=40`, dos registros ejecutando (RSI 14 y RSI 5).
+
+### Lo demas de ese barrido, por si alguien lo vuelve a pensar
+
+- **`stop: EXTREMO` es catastrofico**: −0,103R contra +0,448R de `ZONA`.
+- **Sin `exigirFueraDelCanal`**: +0,145R contra +0,448R. La regla estricta vale.
+- `confirmacion 1` hunde la esperanza (+0,062R); `confirmacion 3` la sube (+0,555R) pero deja
+  0,75 ops/dia.
+- `minHueco 1` lo rompe (−0,249R); `minEmpuje` no mueve nada.
+- `esperaEntrada 120` da algo mas (440 pips/mes contra 390) pero no es comparable al efecto de
+  la separacion.
+
 ## LA VIA QUE SI MULTIPLICA OPERACIONES: el periodo del RSI (14 sep)
 
 Felix pidio buscar mas operaciones sin renunciar a los pips. Se barrieron dos dimensiones que

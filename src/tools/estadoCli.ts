@@ -355,8 +355,11 @@ async function main(): Promise<void> {
   // comparacion, pero mirarlos primero invita a sacar conclusiones de lo que no se esta
   // operando.
   const fichas: Ficha[] = [
-    { nombre: "XM colchon 2 (4 pares) · EJECUTA", ruta: "registros/div-xm2.json", esperanza: 0.18 },
-    { nombre: "XM colchon 1 (4 pares) · solo papel", ruta: "registros/div-xm.json", esperanza: 0.17 },
+    { nombre: "XM sep40 RSI14 · EJECUTA", ruta: "registros/div-xm-sep40.json", esperanza: 0.67 },
+    { nombre: "XM sep40 RSI5 · EJECUTA", ruta: "registros/div-xm-sep40-rsi5.json", esperanza: 0.31 },
+    { nombre: "XM sep60 RSI14 · papel", ruta: "registros/div-xm2.json", esperanza: 0.45 },
+    { nombre: "XM sep60 RSI5 · papel", ruta: "registros/div-xm-rsi5.json", esperanza: 0.23 },
+    { nombre: "XM colchon 1 · papel", ruta: "registros/div-xm.json", esperanza: 0.17 },
     { nombre: "XM video (12 pares) · EJECUTA", ruta: "registros/div-xm-video.json", esperanza: 0.41 },
     { nombre: "yahoo video · solo papel", ruta: "registros/div-video.json", esperanza: 0.41 },
     { nombre: "yahoo afinado · solo papel", ruta: "registros/div-afinado.json", esperanza: 0.1 },

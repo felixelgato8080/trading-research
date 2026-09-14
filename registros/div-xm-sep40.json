@@ -1,9 +1,9 @@
 {
   "version": 2,
   "nombre": "divergencia",
-  "inicio": "2026-09-13T22:02:25.009Z",
-  "ultima": "2026-09-14T01:36:12.528Z",
-  "pasadas": 52,
+  "inicio": "2026-09-14T01:35:38.725Z",
+  "ultima": "2026-09-14T01:36:16.195Z",
+  "pasadas": 2,
   "ajustes": {
     "modo": "afinado",
     "fuente": "MT5",
@@ -12,7 +12,7 @@
       "confirmacion": 2,
       "umbralAlto": 70,
       "minSeparacion": 3,
-      "maxSeparacion": 60,
+      "maxSeparacion": 40,
       "exigirFueraDelCanal": true
     },
     "ent": {
@@ -21,7 +21,7 @@
         "minEmpuje": 1,
         "vigencia": 60,
         "esperaBloque": 20,
-        "colchon": 1,
+        "colchon": 2,
         "objetivoR": 2,
         "radioLiquidez": 0.5,
         "toquesLiquidez": 3,
@@ -29,7 +29,7 @@
       },
       "esperaZona": 40,
       "esperaEntrada": 60,
-      "colchon": 1,
+      "colchon": 2,
       "stop": "ZONA",
       "objetivo": "FIJO",
       "objetivoR": 1.5,

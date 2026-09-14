@@ -209,7 +209,20 @@ async function main(): Promise<void> {
       // replica bien en la otra fuente (Yahoo: +0,249R contra +0,057R del 5), y el unico con
       // las dos direcciones equilibradas; el 5 da 2,3 veces mas operaciones y mas pips al mes.
       periodoRsi: num("periodorsi", 14), confirmacion: 2, umbralAlto: 70,
-      minSeparacion: 3, maxSeparacion: 60, exigirFueraDelCanal: true,
+      // LA SEPARACION MAXIMA ENTRE LOS DOS PICOS DEL RSI, y es lo mejor que ha salido en todo
+      // el proyecto. Con 60 velas de 15m se compara un maximo con otro de QUINCE HORAS antes:
+      // contextos de mercado distintos. Medido el 14 sep, monotono en los cuatro valores:
+      //
+      //     maxSep  20    21 ops   86% acierto   +1,144R   6,8σ
+      //     maxSep  40    56       64%           +0,674R   5,1σ
+      //     maxSep  60    70       57%           +0,448R   3,5σ   <- lo que habia
+      //     maxSep 100   104       53%           +0,311R   2,9σ
+      //
+      // Y REPLICA EN LA OTRA FUENTE con la misma forma (Yahoo, 81 dias: 0,764 / 0,415 / 0,249 /
+      // 0,114). Pasa la bateria entera sobre 40: las dos mitades del calendario casi identicas
+      // (+0,709 y +0,640), las dos direcciones fuertes (+0,622 y +0,866), LOS CUATRO PARES
+      // positivos, y sin el mejor queda en +0,524R con 3,0σ. Tambien funciona con RSI de 5.
+      minSeparacion: 3, maxSeparacion: num("maxsep", 60), exigirFueraDelCanal: true,
     },
     ent: modo === "afinado"
       ? {
