@@ -197,6 +197,55 @@ probada, está esperando.
 
 ---
 
+## LA PREDICCION, ESCRITA ANTES DE VERLA (14 sep)
+
+Lo que sigue es lo que el backtest dice que deberia pasar en vivo. Se escribe AHORA, con fecha,
+para que dentro de dos meses no se pueda mover la porteria.
+
+**Configuracion congelada** (`div-xm-sep40`, unico registro que ejecuta):
+
+    velas de MT5 · 4 cruces del yen · RSI 14, umbral 70/30, confirmacion 2
+    separacion de picos 3-40 velas de 15m · exigir fuera del canal
+    entrada limitada en zona, stop ZONA colchon 2, objetivo 1,5R fijo
+    ejecutor: stop minimo 18 pips, riesgo 0,25%, tope 12 posiciones
+
+**Lo que predice:**
+
+| | |
+|---|---|
+| operaciones | **0,89 al dia · ~27 al mes** |
+| esperanza | entre **+0,20R y +0,45R** |
+| acierto | 55-64% |
+| stop mediano | ~26 pips |
+| pips/mes | 250-490 |
+
+La horquilla de esperanza es deliberada: el backtest da +0,674R en velas de XM y +0,415R en las
+de Yahoo sobre 81 dias. **Lo honesto es esperar la parte baja o menos**, porque se probaron ~150
+configuraciones para llegar aqui y eso infla siempre la mejor.
+
+**Lo que haria falta para decir que funciona:** ~150 operaciones con la esperanza dentro de la
+horquilla. A 27 al mes, unos **seis meses**.
+
+**Lo que lo declararia muerto:** esperanza negativa sobre 100 operaciones, o un acierto por
+debajo del 40% sostenido (el equilibrio con objetivo 1,5R esta en el 40%).
+
+### La validacion que sostiene esto
+
+| | XM (63d) | Yahoo (81d) |
+|---|---|---|
+| todas | 56 ops, 64%, +0,674R, 5,1σ | 66 ops, 56%, +0,415R, 3,3σ |
+| tercio 1 | +0,774R | +0,464R |
+| tercio 2 | +0,814R | +0,383R |
+| tercio 3 | +0,457R | +0,402R |
+| largos / cortos | +0,622 / +0,866 | +0,391 / +0,471 |
+| permutacion | p < 0,00001 | p = 0,0016 |
+
+**Seis subperiodos independientes, los seis positivos.** Es lo mas consistente del proyecto.
+
+**Y el aviso de honestidad:** con ~150 configuraciones probadas, Bonferroni tumbaria el p de
+Yahoo (0,0016 x 150 = 0,23). Sobrevive el de XM. Bonferroni es demasiado duro aqui porque el
+efecto es MONOTONO en la separacion de picos y replica en dos fuentes, pero el aviso queda.
+
 ## LO MEJOR MEDIDO EN TODO EL PROYECTO: la separacion entre picos (14 sep)
 
 De barrer los parametros que quedaban sin tocar. Con `maxSeparacion` en 60 velas de 15m se
