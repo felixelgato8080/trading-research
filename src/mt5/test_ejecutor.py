@@ -10,8 +10,8 @@ silencio: cuantos lotes, cuanta exposicion, y si una señal ya puesta se vuelve 
 import unittest
 
 from ejecutor import (
-    divisas, exposicion_divisas, identidad, limitada_valida, lote, nocional,
-    peaje, perdida_del_dia, que_hacer, riesgo_hueco, simbolo_broker,
+    divisas, exposicion_divisas, identidad, limitada_valida, lote, mercado_valido, nocional,
+    peaje, perdida_del_dia, que_hacer, riesgo_hueco, senal_fresca, simbolo_broker,
 )
 from simbolos import operables_de
 
@@ -317,3 +317,68 @@ class Identidad(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OrdenAMercado(unittest.TestCase):
+    """
+    Las guardas de la entrada a mercado, que es la que puede hacer daño de verdad.
+
+    Una limitada rancia es inofensiva: se queda posada y si el precio no vuelve, no pasa nada.
+    Una a mercado entra SIEMPRE, al precio que haya. Todo lo de aqui existe para que no entre
+    cuando la operacion ya dejo de ser la que era.
+    """
+
+    def test_compra_al_ask_y_vende_al_bid(self):
+        # Las velas son BID, asi que el precio de la señal NO es el de compra. Dimensionar con
+        # el de la señal daria un riesgo real distinto del calculado.
+        vale, _, entrada = mercado_valido("LARGO", 99.0, 103.0, 100.0, 100.2)
+        self.assertTrue(vale)
+        self.assertEqual(entrada, 100.2)
+        vale, _, entrada = mercado_valido("CORTO", 101.0, 97.0, 100.0, 100.2)
+        self.assertTrue(vale)
+        self.assertEqual(entrada, 100.0)
+
+    def test_no_entra_si_el_precio_ya_paso_el_stop(self):
+        # Comprar con el stop por encima del precio es abrir una operacion ya perdida.
+        vale, motivo, _ = mercado_valido("LARGO", 101.0, 105.0, 100.0, 100.2)
+        self.assertFalse(vale)
+        self.assertIn("stop", motivo)
+        vale, motivo, _ = mercado_valido("CORTO", 99.0, 95.0, 100.0, 100.2)
+        self.assertFalse(vale)
+
+    def test_no_entra_si_el_precio_ya_llego_al_objetivo(self):
+        vale, motivo, _ = mercado_valido("LARGO", 99.0, 100.1, 100.0, 100.2)
+        self.assertFalse(vale)
+        self.assertIn("objetivo", motivo)
+
+    def test_no_entra_si_se_comio_el_recorrido(self):
+        # La estrategia planeaba 2R. Si el precio ya hizo la mitad, lo que queda no es esa
+        # apuesta: se arriesga lo mismo para ganar la mitad.
+        #
+        # stop 99, objetivo 103, señal en 100 (2R al planearla). Si ahora pide 102, quedan
+        # 1 de premio contra 3 de riesgo: 0,33R.
+        vale, motivo, _ = mercado_valido("LARGO", 99.0, 103.0, 101.9, 102.0, rr_minimo=1.0)
+        self.assertFalse(vale)
+        self.assertIn("escapo", motivo)
+        # Y con el minimo bajado, la misma señal si entra: la guarda es el parametro, no un muro.
+        vale, _, _ = mercado_valido("LARGO", 99.0, 103.0, 101.9, 102.0, rr_minimo=0.3)
+        self.assertTrue(vale)
+
+    def test_sin_cotizacion_no_entra(self):
+        self.assertFalse(mercado_valido("LARGO", 99.0, 103.0, 0.0, 0.0)[0])
+
+    def test_la_frescura_mira_la_vela_de_la_senal(self):
+        ahora = 1_000_000
+        self.assertTrue(senal_fresca(ahora - 300, ahora, 900)[0])
+        vale, motivo = senal_fresca(ahora - 3600, ahora, 900)
+        self.assertFalse(vale)
+        self.assertIn("min", motivo)
+
+    def test_frescura_cero_no_comprueba_nada(self):
+        # Para poder apagarla sin tocar codigo, igual que el resto de topes.
+        self.assertTrue(senal_fresca(0, 1_000_000, 0)[0])
+
+    def test_una_limitada_vieja_no_es_lo_mismo_que_una_de_mercado_vieja(self):
+        # La limitada solo comprueba que el nivel siga al lado correcto; no le importa la edad,
+        # porque el precio que conseguira es el que pidio. Esta prueba fija esa diferencia.
+        self.assertTrue(limitada_valida("LARGO", 99.0, 100.0, 100.2)[0])

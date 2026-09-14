@@ -142,6 +142,69 @@ def limitada_valida(direccion, entrada, bid, ask):
     return True, ""
 
 
+def mercado_valido(direccion, stop, objetivo, bid, ask, rr_minimo=1.0):
+    """
+    Si una orden A MERCADO todavia tiene sentido al precio de AHORA.
+
+    POR QUE NO VALE LA MISMA COMPROBACION QUE LA LIMITADA
+    ----------------------------------------------------
+    Una limitada rancia es inofensiva: se queda posada en su nivel y, si el precio no vuelve, no
+    pasa nada. Una a mercado es lo contrario — entra SIEMPRE, al precio que haya. Si entre la
+    vela de la señal y este instante el precio se ha ido, no se descarta sola: entra peor, y
+    puede entrar ya pasada de su propio stop.
+
+    Asi que aqui no se pregunta "¿cabe la orden?" sino "¿sigue siendo esta la operacion?". Y se
+    mide con lo unico que no depende de cuando se decidio: el stop y el objetivo, que son niveles
+    de precio fijos.
+
+      1. El stop tiene que quedar al otro lado. Si comprando a mercado el stop ya esta por
+         encima del precio, la operacion nace muerta.
+      2. Lo que queda por ganar tiene que pagar lo que se arriesga. La estrategia planeaba 2R;
+         si el precio se ha comido medio recorrido, lo que queda ya no es esa apuesta. Con
+         `rr_minimo` se dice cuanto hay que conservar.
+
+    Devuelve (vale, motivo, entrada). La entrada es el ASK comprando y el BID vendiendo, que es
+    lo que se paga de verdad: las velas son BID, asi que el precio de la señal NO es el de compra.
+    """
+    if bid <= 0 or ask <= 0:
+        return False, "sin cotizacion", 0.0
+    largo = direccion == "LARGO"
+    entrada = ask if largo else bid
+    riesgo = entrada - stop if largo else stop - entrada
+    premio = objetivo - entrada if largo else entrada - objetivo
+    if riesgo <= 0:
+        return False, f"el precio ya paso el stop: entraria a {entrada} con el stop en {stop}", 0.0
+    if premio <= 0:
+        return False, f"el precio ya llego al objetivo: {entrada} contra {objetivo}", 0.0
+    rr = premio / riesgo
+    if rr < rr_minimo:
+        return False, (f"se escapo: quedan {rr:.2f}R de recorrido y el minimo es "
+                       f"{rr_minimo:.2f}R"), 0.0
+    return True, "", entrada
+
+
+def senal_fresca(t_senal, ahora_seg, max_segundos):
+    """
+    Si una señal es lo bastante reciente para entrar a mercado con ella.
+
+    Una limitada vieja no hace daño; una a mercado si. El grabador decide con velas CERRADAS, asi
+    que entre la vela de la señal y esta llamada hay siempre algo de retraso — pero una cosa son
+    los cinco minutos de la vela en curso y otra volver el lunes y entrar con una señal del
+    viernes. `mercado_valido` ya cubre que el precio no se haya ido de sitio; esto cubre que el
+    MERCADO no sea otro, que no es lo mismo: el precio puede estar donde estaba y haber pasado
+    entremedias un dato que lo cambia todo.
+
+    Con `max_segundos` en 0 no comprueba nada.
+    """
+    if max_segundos <= 0:
+        return True, ""
+    edad = ahora_seg - float(t_senal)
+    if edad > max_segundos:
+        return False, (f"la señal tiene {edad / 60:.0f} min y a mercado solo se entra con "
+                       f"señales de menos de {max_segundos / 60:.0f}")
+    return True, ""
+
+
 def riesgo_hueco(riesgo_dinero, stop_pips, hueco_pips):
     """
     Lo que cuesta una posicion si el precio SALTA por encima de su stop.
@@ -436,32 +499,75 @@ def recoger_cerradas(est, dias=14):
     return nuevas
 
 
-def poner_orden(sym, info, p, lotes, caduca, enserio, ident):
+def descartada(p, motivo):
     """
-    Una limitada con stop y objetivo, con caducidad puesta en el broker.
+    Lo que se apunta de una señal que se vio y NO se puso.
+
+    Se apunta para no volver a intentarla cada 5 minutos hasta que caduque —sesenta rechazos por
+    señal, tapando los que si importan— y para poder cruzar despues el registro en papel con lo
+    que de verdad se opero. Un filtro que rechaza sin dejar rastro es un acto de fe.
+    """
+    return {
+        "ticket": None, "par": p["par"], "direccion": p["direccion"],
+        "entrada_pedida": p["entrada"], "stop": p["stop"], "objetivo": p["objetivo"],
+        "lotes": 0, "riesgo_pedido": 0.0,
+        "puesta": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "tSeñal": p["tSeñal"], "descartada": motivo,
+    }
+
+
+def poner_orden(sym, info, p, lotes, caduca, enserio, ident, entrada_mercado=None, desvio=0):
+    """
+    La orden con su stop y su objetivo. Limitada por defecto; a mercado si se pasa `entrada_mercado`.
+
+    DOS FORMAS DE ENTRAR PORQUE HAY DOS FORMAS DE DECIDIR. Las divergencias fijan un nivel y
+    esperan a que el precio vuelva: eso es una limitada, y su caducidad la lleva el broker. El
+    retroceso del RSI decide al CERRAR la vela de confirmacion, y para entonces el precio ya se
+    fue; ahi no hay nivel al que volver y la orden es a mercado.
+
+    `desvio` es el deslizamiento maximo que se acepta, en puntos del simbolo. En una limitada no
+    hace falta —el nivel lo pone uno— pero a mercado es la unica correa: sin el, el broker llena
+    donde pueda y el riesgo real deja de ser el que se calculo.
 
     Devuelve (ok, ticket, nota). El `ok` va aparte del texto a proposito: con una sola cadena,
     "aceptada con llenado IOC" y "rechazada por saldo" se distinguen mirando dentro del texto,
     y eso se rompe en cuanto alguien cambia una palabra.
     """
     largo = p["direccion"] == "LARGO"
-    tipo = mt5.ORDER_TYPE_BUY_LIMIT if largo else mt5.ORDER_TYPE_SELL_LIMIT
-    pet = {
-        "action": mt5.TRADE_ACTION_PENDING,
-        "symbol": sym,
-        "volume": lotes,
-        "type": tipo,
-        "price": redondear(p["entrada"], info.digits),
-        "sl": redondear(p["stop"], info.digits),
-        "tp": redondear(p["objetivo"], info.digits),
-        "magic": MAGIA,
-        "comment": ident[:31],
-        # LA CADUCIDAD LA LLEVA EL BROKER. Si la llevaramos nosotros, un fin de semana con el
-        # portatil apagado dejaria ordenes vivas mucho despues de que su señal dejara de valer.
-        "type_time": mt5.ORDER_TIME_SPECIFIED,
-        "expiration": int(caduca),
-        "type_filling": mt5.ORDER_FILLING_RETURN,
-    }
+    a_mercado = entrada_mercado is not None
+    if a_mercado:
+        pet = {
+            "action": mt5.TRADE_ACTION_DEAL,
+            "symbol": sym,
+            "volume": lotes,
+            "type": mt5.ORDER_TYPE_BUY if largo else mt5.ORDER_TYPE_SELL,
+            "price": redondear(entrada_mercado, info.digits),
+            "sl": redondear(p["stop"], info.digits),
+            "tp": redondear(p["objetivo"], info.digits),
+            "deviation": int(desvio),
+            "magic": MAGIA,
+            "comment": ident[:31],
+            # NI type_time NI expiration: una orden a mercado se ejecuta o se rechaza en el acto,
+            # no vive. Mandarselos hace que el broker la rechace por caducidad invalida.
+            "type_filling": mt5.ORDER_FILLING_IOC,
+        }
+    else:
+        pet = {
+            "action": mt5.TRADE_ACTION_PENDING,
+            "symbol": sym,
+            "volume": lotes,
+            "type": mt5.ORDER_TYPE_BUY_LIMIT if largo else mt5.ORDER_TYPE_SELL_LIMIT,
+            "price": redondear(p["entrada"], info.digits),
+            "sl": redondear(p["stop"], info.digits),
+            "tp": redondear(p["objetivo"], info.digits),
+            "magic": MAGIA,
+            "comment": ident[:31],
+            # LA CADUCIDAD LA LLEVA EL BROKER. Si la llevaramos nosotros, un fin de semana con el
+            # portatil apagado dejaria ordenes vivas mucho despues de que su señal dejara de valer.
+            "type_time": mt5.ORDER_TIME_SPECIFIED,
+            "expiration": int(caduca),
+            "type_filling": mt5.ORDER_FILLING_RETURN,
+        }
     if not enserio:
         return True, None, "SIMULADO (sin --enserio)"
 
@@ -474,15 +580,24 @@ def poner_orden(sym, info, p, lotes, caduca, enserio, ident):
     #
     # Lo que NO se reintenta es un rechazo de fondo: sin dinero, precio invalido, mercado
     # cerrado. Ahi el problema es la orden, y repetirla solo llena el log.
-    variantes = [
-        ("como se pidio", {}),
-        ("llenado IOC", {"type_filling": mt5.ORDER_FILLING_IOC}),
-        ("llenado FOK", {"type_filling": mt5.ORDER_FILLING_FOK}),
-        ("sin caducidad", {"type_time": mt5.ORDER_TIME_GTC, "expiration": 0}),
-        ("IOC y sin caducidad",
-         {"type_filling": mt5.ORDER_FILLING_IOC, "type_time": mt5.ORDER_TIME_GTC,
-          "expiration": 0}),
-    ]
+    if a_mercado:
+        # A mercado no hay caducidad que reintentar: solo el modo de llenado, que cada broker
+        # acepta distinto.
+        variantes = [
+            ("como se pidio", {}),
+            ("llenado FOK", {"type_filling": mt5.ORDER_FILLING_FOK}),
+            ("llenado RETURN", {"type_filling": mt5.ORDER_FILLING_RETURN}),
+        ]
+    else:
+        variantes = [
+            ("como se pidio", {}),
+            ("llenado IOC", {"type_filling": mt5.ORDER_FILLING_IOC}),
+            ("llenado FOK", {"type_filling": mt5.ORDER_FILLING_FOK}),
+            ("sin caducidad", {"type_time": mt5.ORDER_TIME_GTC, "expiration": 0}),
+            ("IOC y sin caducidad",
+             {"type_filling": mt5.ORDER_FILLING_IOC, "type_time": mt5.ORDER_TIME_GTC,
+              "expiration": 0}),
+        ]
     de_formato = {
         getattr(mt5, "TRADE_RETCODE_INVALID_FILL", 10030),
         getattr(mt5, "TRADE_RETCODE_INVALID_EXPIRATION", 10022),
@@ -710,6 +825,15 @@ def main():
     # exigente en los pares "baratos", y por eso al probarlo en los 12 salieron CERO operaciones
     # en seis de ellos y la esperanza bajo de +0,249R a +0,194R. Para llevarlo a otros pares hay
     # que volver a medirlo en su propia escala, o expresarlo en ATR en vez de en pips.
+    ap.add_argument("--min-stop", default="",
+                    help="min-stop por registro: 'sep40=18,video=5'. Lo que no aparezca usa "
+                         "--min-stop-pips")
+    ap.add_argument("--desvio-puntos", type=int, default=20,
+                    help="deslizamiento maximo aceptado en una orden a mercado, en puntos")
+    ap.add_argument("--rr-minimo-mercado", type=float, default=1.0,
+                    help="R:R que le tiene que quedar a una señal de mercado para entrar")
+    ap.add_argument("--frescura-mercado", type=float, default=900,
+                    help="segundos maximos desde la vela de la señal para entrar a mercado")
     ap.add_argument("--min-stop-pips", type=float, default=0.0,
                     help="descartar las señales con el stop por debajo de esto (0 = no filtra)")
     # TODOS NUESTROS PARES SON CRUCES DEL YEN. Cuatro largos son la misma apuesta cuatro veces,
@@ -927,7 +1051,27 @@ def main():
 
     yaLaIdea = {sinEtiqueta(k) for k in est["puestas"]}
 
+    # EL MIN-STOP ES DE CADA ESTRATEGIA, NO DE LA CUENTA.
+    #
+    # Con uno solo para todas, `video` no podia ejecutarse: sus stops son de 3-5 pips y el 18 que
+    # necesita `sep40` dejaba pasar UNA señal de cada 387. Y al reves, aflojarlo a 5 para todas
+    # tiraria por la borda lo unico que paso la bateria entera de controles en `sep40`.
+    #
+    # Medido el 14 sep con el spread de la cuenta nueva, `video` con min-stop 5 da +0,485R sobre
+    # 51 operaciones, y con el spread VIEJO ese mismo filtro daba -0,068R: el filtro no valia
+    # antes y vale ahora. Esa es la razon de que esto exista.
+    min_stop_de = {}
+    for trozo in args.min_stop.split(","):
+        if not trozo.strip():
+            continue
+        k, _, v = trozo.partition("=")
+        try:
+            min_stop_de[k.strip()] = float(v)
+        except ValueError:
+            raise SystemExit(f"--min-stop mal escrito en '{trozo}'. Se espera 'etiqueta=pips'.")
+
     for etiqueta, ruta, reg in registros:
+        min_stop = min_stop_de.get(etiqueta, args.min_stop_pips)
         pendientes = reg.get("pendientes", [])
         print(f"\n-- {etiqueta or os.path.basename(ruta)}: {len(pendientes)} pendiente(s) "
               f"en el registro")
@@ -951,7 +1095,35 @@ def main():
             if info is None:
                 print(f"   ! {ident:<28} sin informacion del simbolo")
                 continue
-            riesgo_precio = abs(p["entrada"] - p["stop"])
+            # QUE PRECIO CUENTA. En una limitada es el nivel apuntado, que es el que se va a
+            # conseguir. A mercado es el de AHORA: entrar con el de la señal seria dimensionar
+            # la posicion contra un precio que ya no existe, y el riesgo real saldria otro.
+            #
+            # El tick se lee aqui, antes de dimensionar, justo por eso.
+            tick = mt5.symbol_info_tick(sym)
+            a_mercado = p.get("tipo") == "MERCADO"
+            entrada_efectiva = p["entrada"]
+            if a_mercado:
+                if tick is None:
+                    print(f"   - {ident:<28} sin cotizacion para entrar a mercado")
+                    continue
+                fresca, porque = senal_fresca(p["tSeñal"], ahora_seg, args.frescura_mercado)
+                if not fresca:
+                    print(f"   - {ident:<28} {porque}")
+                    if args.enserio:
+                        est["puestas"][ident] = descartada(p, porque)
+                    continue
+                vale, porque, entrada_efectiva = mercado_valido(
+                    p["direccion"], p["stop"], p["objetivo"], tick.bid, tick.ask,
+                    args.rr_minimo_mercado,
+                )
+                if not vale:
+                    print(f"   - {ident:<28} {porque}")
+                    if args.enserio:
+                        est["puestas"][ident] = descartada(p, porque)
+                    continue
+
+            riesgo_precio = abs(entrada_efectiva - p["stop"])
             lotes, motivo = lote(
                 riesgo_dinero, riesgo_precio, info.trade_tick_size, info.trade_tick_value,
                 info.volume_step, info.volume_min, info.volume_max,
@@ -960,7 +1132,7 @@ def main():
                 print(f"   ! {ident:<28} {motivo}")
                 continue
             pips = riesgo_precio / (0.01 if "JPY" in sym else 0.0001)
-            exp = nocional(p["entrada"], riesgo_dinero, riesgo_precio)
+            exp = nocional(entrada_efectiva, riesgo_dinero, riesgo_precio)
             en_hueco = riesgo_hueco(riesgo_dinero, pips, args.hueco_peor)
 
             # NINGUNA POSICION SOLA SE LLEVA MAS QUE SU PARTE. Sin esto, una señal con el stop
@@ -991,37 +1163,24 @@ def main():
                 print(f"   ojo  {ident:<26} exposicion acumulada "
                       f"{(expuesto + exp) / cuenta.balance:.0f}x, stop de {pips:.1f}p")
 
-            if pips < args.min_stop_pips:
+            if pips < min_stop:
                 print(f"   - {ident:<28} stop de {pips:.1f}p, por debajo del minimo de "
-                      f"{args.min_stop_pips:.0f}p")
+                      f"{min_stop:.0f}p")
                 if args.enserio:
-                    est["puestas"][ident] = {
-                        "ticket": None, "par": p["par"], "direccion": p["direccion"],
-                        "entrada_pedida": p["entrada"], "stop": p["stop"],
-                        "objetivo": p["objetivo"], "lotes": 0, "riesgo_pedido": 0.0,
-                        "puesta": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        "tSeñal": p["tSeñal"], "descartada": f"stop {pips:.1f}p",
-                    }
+                    est["puestas"][ident] = descartada(p, f"stop {pips:.1f}p")
                 continue
 
-            # EL SPREAD DEL INSTANTE. Se lee aqui, con la orden ya decidida, que es el unico
-            # momento en que la medida significa algo: el coste de ESTA operacion, no el de un
-            # muestreo cada 30 segundos que quiza cayo en otro minuto.
-            tick = mt5.symbol_info_tick(sym)
-            if tick is not None:
+            # EL SPREAD DEL INSTANTE: el coste de ESTA operacion, no el de un muestreo cada 30
+            # segundos que quiza cayo en otro minuto. El tick ya se leyo arriba, al decidir el
+            # precio de entrada.
+            if tick is not None and not a_mercado:
                 vale, porque = limitada_valida(p["direccion"], p["entrada"], tick.bid, tick.ask)
                 if not vale:
                     print(f"   - {ident:<28} {porque}")
                     # Se apunta como intentada para no volver a probarla cada 5 minutos hasta
                     # que caduque. La señal no vuelve: el precio ya hizo su recorrido.
                     if args.enserio:
-                        est["puestas"][ident] = {
-                            "ticket": None, "par": p["par"], "direccion": p["direccion"],
-                            "entrada_pedida": p["entrada"], "stop": p["stop"],
-                            "objetivo": p["objetivo"], "lotes": 0, "riesgo_pedido": 0.0,
-                            "puesta": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                            "tSeñal": p["tSeñal"], "descartada": porque,
-                        }
+                        est["puestas"][ident] = descartada(p, porque)
                     continue
             spread_pips = None
             pj = None
@@ -1043,13 +1202,7 @@ def main():
                             "t": int(time.time()), "tSeñal": p["tSeñal"],
                             "motivo": "peaje",
                         })
-                        est["puestas"][ident] = {
-                            "ticket": None, "par": p["par"], "direccion": p["direccion"],
-                            "entrada_pedida": p["entrada"], "stop": p["stop"],
-                            "objetivo": p["objetivo"], "lotes": 0, "riesgo_pedido": 0.0,
-                            "puesta": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                            "tSeñal": p["tSeñal"], "descartada": f"peaje {pj:.2f}",
-                        }
+                        est["puestas"][ident] = descartada(p, f"peaje {pj:.2f}")
                     continue
 
             # CORRELACION: cuatro cruces del yen al mismo lado son UNA apuesta puesta cuatro
@@ -1073,7 +1226,7 @@ def main():
             # cuenta. Se para antes, dejando la mitad del margen libre.
             margen = mt5.order_calc_margin(
                 mt5.ORDER_TYPE_BUY if p["direccion"] == "LARGO" else mt5.ORDER_TYPE_SELL,
-                sym, lotes, p["entrada"],
+                sym, lotes, entrada_efectiva,
             )
             if margen is not None and margen > cuenta.margin_free * 0.5:
                 print(f"   - {ident:<28} margen: pide {margen:.2f} y libre quedan "
@@ -1081,8 +1234,11 @@ def main():
                 continue
 
             ok, ticket, nota = poner_orden(
-                sym, info, p, lotes, p["caducaEn"], args.enserio, ident)
-            linea = (f"   + {ident:<28} {p['direccion']:<6} {lotes} lotes · stop {pips:.1f}p · "
+                sym, info, p, lotes, p["caducaEn"], args.enserio, ident,
+                entrada_mercado=entrada_efectiva if a_mercado else None,
+                desvio=args.desvio_puntos)
+            linea = (f"   + {ident:<28} {'MERCADO' if a_mercado else 'limitada'} "
+                     f"{p['direccion']:<6} {lotes} lotes · stop {pips:.1f}p · "
                      f"riesgo {riesgo_dinero:.2f} · {exp / cuenta.balance:.1f}x · "
                      f"hueco {en_hueco:.2f}" +
                      (f" · spread {spread_pips:.2f}p = {pj * 100:.0f}% del riesgo"
@@ -1106,6 +1262,10 @@ def main():
                 est["puestas"][ident] = {
                     "ticket": ticket, "par": p["par"], "direccion": p["direccion"],
                     "entrada_pedida": p["entrada"], "stop": p["stop"], "objetivo": p["objetivo"],
+                    # A MERCADO EL PRECIO DE LA SEÑAL NO ES EL QUE SE PAGA. Se guardan los dos:
+                    # sin el segundo no se puede saber despues cuanto costo el retraso.
+                    "tipo": "MERCADO" if a_mercado else "LIMITADA",
+                    "entrada_mercado": round(entrada_efectiva, 6) if a_mercado else None,
                     "lotes": lotes, "riesgo_pedido": riesgo_dinero,
                     "stop_pips": round(pips, 2),
                     # EL SPREAD AL PONERLA. Es el dato por el que existe todo esto, y se guarda
