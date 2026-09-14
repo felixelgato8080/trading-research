@@ -197,6 +197,38 @@ probada, está esperando.
 
 ---
 
+## LO QUE HACE QUE ESTO PUEDA GANAR: elegir, no ensanchar (14 sep)
+
+Con los spreads reales de XM, **ninguna** combinacion de colchon, objetivo y minRiesgoAtr sale
+positiva: 0 de 18. Y la forma dice por que —**ensanchar el stop baja el peaje pero no mejora el
+resultado**, porque destruye la señal al mismo ritmo que ahorra coste:
+
+| colchon | peaje | esperanza |
+|---|---|---|
+| 2 | 35% | −0,175R |
+| 4 | 21% | −0,206R |
+| 6 | 15% | −0,191R |
+
+**Lo que si funciona es DESCARTAR las señales que nacen con el stop demasiado estrecho.** Misma
+aritmetica por fuera, lo contrario por dentro: no se toca ninguna operacion, se dejan de tomar
+las que el spread mata.
+
+| tope de peaje | ops | ops/dia | acierto | esperanza | sigma |
+|---|---|---|---|---|---|
+| sin tope | 163 | 5,3 | 34% | −0,175R | −2,0σ |
+| **30% del riesgo** | 64 | 2,1 | 53% | **+0,285R** | 2,1σ |
+| 25% | 52 | 1,7 | 52% | +0,319R | 2,1σ |
+| 20% | 36 | 1,2 | 56% | +0,396R | 2,3σ |
+| 15% | 25 | 0,8 | 52% | +0,363R | 1,9σ |
+| 10% | 12 | 0,4 | 58% | +0,438R | 1,6σ |
+
+**Puesto en produccion al 30%** (`--tope-peaje=0.30` en `grabar5.cmd`). Se elige 30 y no 20
+porque deja el triple de operaciones y con 31 dias no conviene afinar mas: **lo que hace creible
+el efecto es que las seis filas sean positivas**, no cual es la mejor — eso es ruido.
+
+Sigue siendo en muestra y 31 dias. Lo que lo hace defendible es el mecanismo: el peaje ES
+spread/stop, y esto quita exactamente las operaciones donde ese cociente es insostenible.
+
 ## LA FOTO COMPLETA SOBRE PRECIOS DE XM (14 sep)
 
 Con el simulador arreglado, las velas del broker y el spread real medido. 12 pares, 31 dias.

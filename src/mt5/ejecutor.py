@@ -360,8 +360,20 @@ def recoger_cerradas(est, dias=14):
     Se agrupa por `position_id` porque una posicion son al menos dos deals (entrada y salida) y
     el beneficio de la operacion es la suma de los suyos.
     """
-    desde = datetime.now(timezone.utc) - timedelta(days=dias)
-    deals = mt5.history_deals_get(desde, datetime.now(timezone.utc)) or []
+    # LA VENTANA SE PIDE CON MARGEN POR LOS DOS LADOS, y no es pereza.
+    #
+    # `history_deals_get` interpreta sus fechas en hora del SERVIDOR (XM va +3), no en UTC.
+    # Pasandole `datetime.now(timezone.utc)` como limite superior, ese limite queda TRES HORAS
+    # EN EL PASADO para el servidor, y las operaciones recien cerradas se quedan fuera. Paso de
+    # verdad el 14 sep: la primera orden real se lleno, salto su stop, el saldo bajo 2,48 USD y
+    # el historial del ejecutor seguia vacio.
+    #
+    # Es el mismo fallo de la hora del servidor por tercera vez —ya aparecio en el medidor de
+    # spread y en el exportador de velas— asi que aqui se resuelve por la via que no depende de
+    # acertar el desfase: un dia de margen por arriba cubre cualquier huso.
+    desde = datetime.now(timezone.utc) - timedelta(days=dias + 1)
+    hasta = datetime.now(timezone.utc) + timedelta(days=1)
+    deals = mt5.history_deals_get(desde, hasta) or []
     nuestros = [d for d in deals if d.magic == MAGIA]
     por_posicion = {}
     for d in nuestros:
