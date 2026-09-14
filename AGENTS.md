@@ -212,7 +212,7 @@ seria justo lo que estas secciones existen para impedir.
 | etiqueta | registro | que es | min-stop |
 |---|---|---|---|
 | `sep40` | div-ul-sep40 | divergencias RSI 14, maxSep 40, colchon 2 | 18 p |
-| `ul2` | div-ul2 | lo mismo con maxSep 60 | 12 p |
+| `ul2` | div-ul2 | lo mismo con maxSep 60 | 8 p |
 | `video` | div-ul-video | la del video, 12 pares, objetivo liquidez | 5 p |
 | `pbv1` | pb-v1 | retroceso del RSI, **entrada a mercado** | 8 p |
 
@@ -221,14 +221,14 @@ repetidas —que es lo que de verdad se va a operar, no la suma de las cuatro:
 
 | | |
 |---|---|
-| operaciones | **3,66 al dia · ~110 al mes** |
-| esperanza | **entre 0 y +0,15R** |
-| pips/mes | 200-620 |
+| operaciones | **5,05 al dia · ~150 al mes** |
+| esperanza | **entre 0 y +0,12R** |
+| pips/mes | 200-640 |
 
 **La horquilla va deliberadamente por debajo de lo medido, y aqui esta el porque.** El backtest de
-esos 31 dias da +0,217R, pero esos 31 dias son el trimestre bueno: la misma `sep40` que ahi sale a
+esos 31 dias da +0,172R, pero esos 31 dias son el trimestre bueno: la misma `sep40` que ahi sale a
 +0,964R dio **+0,174R sobre 244 dias**. Un factor 5,5 entre la ventana corta y la larga. Aplicarle
-ese mismo descuento al +0,217R deja algo cercano a cero, y eso es lo que hay que esperar.
+ese mismo descuento al +0,172R deja algo cercano a cero, y eso es lo que hay que esperar.
 
 **Lo que cada una aporta DE PROPIO** (lo que no cogeria otra antes), porque es donde estara la
 respuesta interesante:
@@ -236,7 +236,7 @@ respuesta interesante:
 | | ops/dia propias | esperanza de esas |
 |---|---|---|
 | `sep40` | 0,78 | +0,964R |
-| `ul2` | 1,20 | +0,238R |
+| `ul2` | 2,59 | +0,139R |
 | `video` | 0,49 | **-0,303R** |
 | `pbv1` | 1,20 | -0,078R |
 
@@ -250,14 +250,29 @@ respuesta interesante:
    operaciones y en vivo lleva **+15,98R con PF 1,46**. Esta es la segunda vez que se pone a correr
    algo que el backtest desaconseja, y la primera vez el backtest se equivoco.
 
-**Lo que declararia muerto al conjunto:** esperanza negativa sobre 200 operaciones cerradas. A 110
-al mes, unos **dos meses**.
+**Lo que declararia muerto al conjunto:** esperanza negativa sobre 200 operaciones cerradas. A 150
+al mes, **mes y medio**.
 
-**Lo que NO se va a hacer mientras tanto:** tocar los min-stop, cambiar de pares, o añadir
-variantes. Se midio que aflojar `ul2` de 12 a 8 daria 5,05 ops/dia con mas pips (641 contra 620), y
-aun asi se deja en 12 — porque cambiar la configuracion a mitad convierte el registro en otra cosa
-y hay que volver a empezar a contar. Decision de Felix el 14 sep: *"dejemos todo como esta y
-esperemos los datos"*.
+**EL MIN-STOP DE `ul2` SE PUSO EN 8 JUSTO ANTES DE CONGELAR**, y el motivo es el unico que
+justifica tocar algo a estas alturas: los pips/mes son PLANOS entre min-stop 0 y 12 (600-641), asi
+que bajar el minimo sale gratis en pips. Lo unico que baja es la esperanza por operacion, que es
+otra forma de decir que la muestra crece mas rapido que el resultado — y la muestra es justo lo
+que falta. El 8 es el maximo de pips de la columna:
+
+| ul2 min-stop | total ops/dia | esperanza | pips/mes |
+|---|---|---|---|
+| 0 | 6,93 | +0,111R | 619 |
+| 5 | 6,32 | +0,108R | 600 |
+| **8** | **5,05** | +0,172R | **641** |
+| 10 | 4,11 | +0,184R | 611 |
+| 12 | 3,66 | +0,217R | 620 |
+
+Se pudo cambiar sin reiniciar nada porque **el min-stop lo aplica el EJECUTOR, no el grabador**:
+`div-ul2.json` sigue apuntando todas las señales igual y sus ajustes no se tocan.
+
+**Lo que NO se va a hacer a partir de aqui:** tocar min-stops, cambiar de pares, o añadir
+variantes. Cambiar la configuracion a mitad convierte el registro en otra cosa y hay que volver a
+empezar a contar. Decision de Felix el 14 sep: *"dejamos todo corriendo"*.
 
 ---
 

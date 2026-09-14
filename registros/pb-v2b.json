@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "pullback",
   "inicio": "2026-09-14T05:49:02.012Z",
-  "ultima": "2026-09-14T06:25:13.917Z",
-  "pasadas": 12,
+  "ultima": "2026-09-14T06:34:13.935Z",
+  "pasadas": 14,
   "ajustes": {
     "version": "V2(adxSubiendoDesde=0)",
     "fuente": "MT5 #",
@@ -37,12 +37,12 @@
   "abiertas": [],
   "cerradas": [],
   "vistoHasta": {
-    "EURUSD=X": 1789366800,
-    "GBPUSD=X": 1789366800,
-    "USDJPY=X": 1789366800,
-    "EURJPY=X": 1789366800,
-    "GBPJPY=X": 1789366800,
-    "AUDUSD=X": 1789366800
+    "EURUSD=X": 1789367100,
+    "GBPUSD=X": 1789367100,
+    "USDJPY=X": 1789367100,
+    "EURJPY=X": 1789367100,
+    "GBPJPY=X": 1789367100,
+    "AUDUSD=X": 1789367100
   },
   "discrepancias": []
 }
