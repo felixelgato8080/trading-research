@@ -250,6 +250,22 @@ equivalentes, y en pips se ve lo que de verdad hace.
 Se elige 18 y no 22 porque deja un 27% mas de operaciones y las cinco filas van en la misma
 direccion; cual es la mejor, con 94 operaciones, es ruido.
 
+### PROBADO Y DESCARTADO: llevarlo a los 12 pares y a `video`
+
+| | ops | acierto | esperanza | sigma |
+|---|---|---|---|---|
+| **los 4 del yen** | 94 | 51% | **+0,249R** | 2,3σ |
+| los 8 nuevos | 9 | 44% | −0,381R | −1,6σ |
+| los 12 juntos | 103 | 50% | +0,194R | 1,9σ |
+
+**18 pips NO es un umbral neutro.** En GBPJPY (207) son el 0,087% del precio; en EURUSD (1,16),
+el 0,155%. Casi el doble de exigente en los pares baratos, y por eso seis de los ocho dan CERO
+operaciones. Para llevarlo a otros pares hay que medirlo en su escala, o expresarlo en ATR.
+
+**Y `video` no puede ejecutarse con esto:** su stop mediano son **2,5 pips** y de 387 señales en
+31 dias pasaria UNA. Sin filtro da −0,632R con −6,3σ. Se quita del ejecutor y **sigue grabando
+en papel**, que como control vale: si algun dia sale positiva, el roto es el backtest.
+
 ## LO QUE HACE QUE ESTO PUEDA GANAR: elegir, no ensanchar (14 sep)
 
 Con los spreads reales de XM, **ninguna** combinacion de colchon, objetivo y minRiesgoAtr sale

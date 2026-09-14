@@ -696,6 +696,11 @@ def main():
     # Se expresa en PIPS y no como fraccion del spread porque el spread de esta cuenta es PLANO
     # por horas (2,5-2,7 en USDJPY las 24 horas, salvo el vuelco de las 21h), asi que las dos
     # cosas serian equivalentes — y en pips se ve lo que de verdad hace.
+    # OJO: 18 PIPS ESTA ATADO A LA ESCALA DE LOS CRUCES DEL YEN y no es neutro. En GBPJPY (207)
+    # son el 0,087% del precio; en EURUSD (1,16), el 0,155%. El mismo numero es casi el doble de
+    # exigente en los pares "baratos", y por eso al probarlo en los 12 salieron CERO operaciones
+    # en seis de ellos y la esperanza bajo de +0,249R a +0,194R. Para llevarlo a otros pares hay
+    # que volver a medirlo en su propia escala, o expresarlo en ATR en vez de en pips.
     ap.add_argument("--min-stop-pips", type=float, default=0.0,
                     help="descartar las señales con el stop por debajo de esto (0 = no filtra)")
     # TODOS NUESTROS PARES SON CRUCES DEL YEN. Cuatro largos son la misma apuesta cuatro veces,
