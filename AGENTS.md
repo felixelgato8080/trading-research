@@ -653,6 +653,34 @@ exigir 80/20 en vez de 70/30 no mejora de forma distinguible y corta la muestra 
 parte (110 operaciones, +0,117R, 1,0σ). El tercer sistema del vídeo, la confirmación
 multitemporal, es literalmente lo que `div-video` y `div-4h1h` ya hacen.
 
+**Medido y descartado (14 sep) — ORO E INDICES.** Era la ultima via sin explorar para subir el
+ritmo, y la mas prometedora sobre el papel: su spread relativo a lo que se mueven es **3 a 8
+veces menor** que el de los cruces del yen.
+
+| instrumento | spread/ATR | | los del yen | 0,6-0,9x |
+|---|---|---|---|---|
+| JP225Cash | 0,11x | | GOLD | 0,12x |
+| US100Cash | 0,15x | | US500Cash | 0,25x |
+
+Sobre 88 dias con el spread real de XM, colchon 2:
+
+| min stop | ops/dia | acierto | esperanza | sigma |
+|---|---|---|---|---|
+| sin minimo | 11,28 | 35% | −0,134R | −3,1σ |
+| 2 ATR | 6,37 | 39% | −0,105R | −2,3σ |
+| 4 ATR | 1,83 | 38% | −0,160R | −2,2σ |
+
+Uno a uno: GOLD −0,129R · US100 −0,133R · US30 −0,163R · GER40 −0,424R · OIL −0,220R ·
+JP225 −0,026R · US500 +0,021R · UK100 +0,115R (0,9σ). **Ninguno pasa de ruido.**
+
+**Y eso descarta la explicacion del coste:** el peaje aqui es una fraccion del de forex y el
+resultado es peor. No es que salga caro operarlo — es que la señal no esta.
+
+**Un aviso que se lleva de vuelta a forex:** el filtro de stop minimo, que en los cruces del yen
+lleva de −0,348R a +0,456R, **aqui no hace nada** (−0,134 → −0,105 → −0,160). Si "las zonas
+grandes valen mas" fuera una propiedad general de la estrategia, deberia aparecer tambien aqui.
+No aparece, y eso deja el hallazgo de forex mas solo de lo que parecia.
+
 **Descartado y por qué:** ETF y futuros (apalancamiento), copy-trading de memecoins, RSI de forex
 intradía (bruto es PLANO, −0,043R ±0,099, y el peaje se lleva el 28% del riesgo: no hay coste lo
 bastante bajo para salvarlo), TDFI (pierde contra su propia volteada por 2,3σ), VWAP, huecos,
