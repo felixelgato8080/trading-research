@@ -207,7 +207,7 @@ spread bajo entre un 17% y un 68% segun el par, y con eso se pusieron a ejecutar
 en vez de uno. Se escribe la prediccion nueva aqui, con fecha, y **no se borra la vieja**: moverla
 seria justo lo que estas secciones existen para impedir.
 
-**Lo que ejecuta ahora** (todo sobre 108419791, demo, riesgo 0,25%, tope 12 posiciones):
+**Lo que ejecuta ahora** (todo sobre 108419791, demo, **riesgo 0,5%**, tope diario 6%, tope 12 posiciones):
 
 | etiqueta | registro | que es | min-stop |
 |---|---|---|---|
@@ -285,6 +285,41 @@ de muestreo: es el coste de esa operacion concreta.
 
 **`ul2`, `sep40` y `pbv1` siguen con min-stop** porque los tres tienen objetivo en multiplo fijo y
 ahi el min-stop es lo correcto. Este cambio es de `video` y solo de `video`.
+
+### EL RIESGO SUBIO A 0,5% EL 15 SEP, y el tope diario con el
+
+**El motivo no es querer ganar mas, es que a 0,25% habia operaciones que no podian entrar.** Sobre
+una cuenta de 1.000 USD, cuando el stop pasa de ~38 pips el lote calculado cae por debajo del
+minimo del broker (0,01) y la operacion se rechaza. La guarda hace bien —al minimo se arriesgaria
+dos o tres veces lo pedido— pero el resultado era perder senales por el tamaño de la cuenta y no
+por su merito:
+
+| | a 0,25% | a 0,5% |
+|---|---|---|
+| `sep40` | **5 de 29 (17%)** | 0 de 29 |
+| `ul2` | 5 de 111 (5%) | 0 de 111 |
+| `video` | 0 de 110 | 0 de 110 |
+| `pbv1` | 0 de 41 | 0 de 41 |
+
+`sep40` era el mas tocado justo porque su min-stop de 18 selecciona los stops anchos (su p90 son
+45,6 pips), y es la de mejor esperanza medida.
+
+**Y el tope diario sube con el, porque si no censura los datos.** El tope es un porcentaje del
+saldo, asi que al doblar el riesgo muerde a la mitad de operaciones. Medido sobre los mismos
+31 dias:
+
+| | equivale a | salta |
+|---|---|---|
+| riesgo 0,25% + tope 3% | 12,0R | 1 de 21 dias |
+| riesgo 0,50% + tope 3% | 6,0R | **4 de 21 dias** |
+| riesgo 0,50% + tope 6% | 12,0R | 1 de 21 dias |
+
+Cuando el tope salta, el ejecutor cancela lo pendiente y corta el dia. Saltando uno de cada cinco
+dias dejaria de ser un freno de emergencia para pasar a sesgar el registro.
+
+**Lo que cuesta, dicho claro:** el peor dia de esos 31 fue -16,67R. A 0,25% eso es el -4,17% de la
+cuenta; a 0,5% es el -8,34%. Doblar el riesgo dobla las rachas malas, y no hay version de esto en
+la que no sea asi.
 
 **Lo que declararia muerto al conjunto:** esperanza negativa sobre 200 operaciones cerradas. A 200
 al mes, **un mes**.
