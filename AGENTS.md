@@ -207,7 +207,7 @@ spread bajo entre un 17% y un 68% segun el par, y con eso se pusieron a ejecutar
 en vez de uno. Se escribe la prediccion nueva aqui, con fecha, y **no se borra la vieja**: moverla
 seria justo lo que estas secciones existen para impedir.
 
-**Lo que ejecuta ahora** (todo sobre 108419791, demo, **riesgo 0,5%**, tope diario 6%, tope 12 posiciones):
+**Lo que ejecuta ahora** (todo sobre **169363039**, demo, **riesgo 0,5%**, tope diario 6%, tope 12 posiciones):
 
 | etiqueta | registro | que es | min-stop |
 |---|---|---|---|
@@ -320,6 +320,44 @@ dias dejaria de ser un freno de emergencia para pasar a sesgar el registro.
 **Lo que cuesta, dicho claro:** el peor dia de esos 31 fue -16,67R. A 0,25% eso es el -4,17% de la
 cuenta; a 0,5% es el -8,34%. Doblar el riesgo dobla las rachas malas, y no hay version de esto en
 la que no sea asi.
+
+### CAMBIO A LA CUENTA 169363039 EL 15 SEP, sin reiniciar los registros
+
+Felix puso un EA de oro ajeno ("The Gold Reaper") en 108419791 y prefirio separar las dos cosas:
+esa cuenta se queda para el oro y el sistema pasa a **169363039**.
+
+**Los registros NO se reinician, y eso se midio antes de decidirlo.** Las dos cuentas son del
+mismo broker y resuelven al mismo grupo de simbolos (`#`, Ultra Low), asi que dan la MISMA serie
+de precios. Comparando 500 velas de 5m por par entre los dos servidores (XMGlobal-MT5 5 y
+XMGlobal-MT5 2):
+
+| par | identicas | diferencia media |
+|---|---|---|
+| EURUSD | 499/500 | 0,002 pips |
+| GBPUSD | 499/500 | 0,003 |
+| USDJPY | 499/500 | 0,005 |
+| EURJPY | 499/500 | 0,002 |
+| GBPJPY | 497/500 | 0,004 |
+| AUDUSD | 499/500 | 0,001 |
+
+Las que difieren son las ultimas, aun formandose cuando se capturo una de las dos. El spread
+tambien coincide, medido en vivo en las dos cuentas: EURUSD 1,20 en ambas, USDJPY 1,30, AUDUSD
+1,30, USDCAD 2,30, NZDUSD 2,10, EURGBP 2,00.
+
+**Por eso `fuente` sigue capturando el GRUPO DE SIMBOLOS y no la cuenta.** Lo que movio el bid
+medio pip el 14 sep fue el grupo (Standard contra Ultra Low), no la cuenta; sobre el mismo grupo,
+la cuenta no mueve el precio. Meter el login ahi habria obligado a tirar el registro de un dia
+entero para protegerse de una diferencia que se comprobo que no existe.
+
+**Lo que si cambia es donde se mandan las ordenes**, y eso va clavado con `--cuenta`: si el
+terminal esta en otra, los scripts paran.
+
+**El EA ajeno, mientras estuvo:** nunca interfirio con lo nuestro. El ejecutor filtra todo por
+`magic == 20260913`, asi que ni tocaba sus ordenes ni sus perdidas contaban contra nuestro tope
+diario. Lo que SI se comparte es el margen y el saldo sobre el que se calculan los topes en
+porcentaje — y ahi estaba el motivo real para separarlas: con las dos cosas en la misma cuenta,
+dentro de un mes no se podria distinguir "mi estrategia funciono" de "el saldo se movio por el
+otro bot".
 
 **Lo que declararia muerto al conjunto:** esperanza negativa sobre 200 operaciones cerradas. A 200
 al mes, **un mes**.
