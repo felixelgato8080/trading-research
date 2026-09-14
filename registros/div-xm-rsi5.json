@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-14T01:28:07.202Z",
-  "ultima": "2026-09-14T04:20:06.045Z",
-  "pasadas": 35,
+  "ultima": "2026-09-14T04:35:05.902Z",
+  "pasadas": 38,
   "ajustes": {
     "modo": "afinado",
     "fuente": "MT5",
@@ -40,13 +40,30 @@
   "costeBps": 0.6,
   "vigencia": 60,
   "pendientes": [],
-  "abiertas": [],
+  "abiertas": [
+    {
+      "par": "EURJPY=X",
+      "direccion": "LARGO",
+      "entrada": 178.127,
+      "stop": 178.01299999999998,
+      "objetivo": 178.29800000000006,
+      "rr": 1.5,
+      "apuntada": "2026-09-14T04:30:06.198Z",
+      "tSeñal": 1789359900,
+      "caducaEn": 1789377900,
+      "velasDeRetraso": 0,
+      "abierta": "2026-09-14T04:35:05.902Z",
+      "tEntrada": 1789360200,
+      "entradaReal": 178.127,
+      "marca": 29.928037655370005
+    }
+  ],
   "cerradas": [],
   "vistoHasta": {
-    "USDJPY=X": 1789359300,
-    "GBPJPY=X": 1789359300,
-    "EURJPY=X": 1789359300,
-    "AUDJPY=X": 1789359300
+    "USDJPY=X": 1789360200,
+    "GBPJPY=X": 1789360200,
+    "EURJPY=X": 1789360200,
+    "AUDJPY=X": 1789360200
   },
   "discrepancias": []
 }
