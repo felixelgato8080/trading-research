@@ -197,6 +197,59 @@ probada, está esperando.
 
 ---
 
+## LA MEDIDA BUENA, DESPUES DE REVISARLO TODO (14 sep)
+
+Felix no se creyo el analisis anterior y pidio revisar todas las variables. Tenia razon: habia
+dos errores, y corregirlos cambia la historia entera.
+
+**ERROR 1 — se aplicaba un spread fijo a operaciones de todas las horas**, con solo 4 horas
+medidas y todas de sesion asiatica. Se reconstruyo el perfil horario REAL del historico de ticks
+de XM (12 dias, ~52.000 muestras por par):
+
+| | 0h-20h | 21h (vuelco) |
+|---|---|---|
+| USDJPY | 2,50-2,70 | 8,10 |
+| GBPJPY | 3,60-4,20 | 26,10 |
+| EURJPY | 3,30-3,90 | 13,60 |
+| AUDJPY | 3,60-3,90 | 15,10 |
+
+**El spread de esta cuenta es PLANO.** No baja en Londres: es un margen fijo del broker, no un
+spread de mercado. La esperanza de "en Londres sera mas barato" queda cerrada.
+
+**ERROR 2, y este es el gordo — el filtro NO funciona por el coste.** El mismo filtro mejora
+igual con spread CERO: 49% → 64% → 72% de acierto. No esta quitando operaciones caras: esta
+**seleccionando señales mejores**. Las zonas grandes valen mas, que es coherente con el SMC —un
+desequilibrio mayor es una señal mas fuerte— pero **es una hipotesis distinta** de la del peaje.
+
+**Y GBPJPY era un espejismo.** En los 31 dias de MT5 daba +0,787R y el 84% del resultado; en los
+81 dias de Yahoo da **−0,001R**. Exactamente cero.
+
+### EL NUMERO, con el spread real por hora y 81 dias
+
+| stop minimo | ops/dia | acierto | bruto | **NETO** | sigma |
+|---|---|---|---|---|---|
+| sin minimo | 4,98 | 33% | +0,091R | **−0,171R** | −3,1σ |
+| ≥ 12 pips | 2,41 | 41% | +0,139R | +0,002R | 0,0σ |
+| ≥ 15 pips | 1,73 | 45% | +0,219R | +0,113R | 1,2σ |
+| **≥ 18 pips** | **1,16** | **51%** | +0,356R | **+0,249R** | **2,3σ** |
+| ≥ 22 pips | 0,91 | 55% | +0,450R | +0,353R | 2,9σ |
+
+**La bateria completa sobre ≥18 pips:**
+
+| control | resultado |
+|---|---|
+| mitades del calendario | +0,310R y +0,188R — las dos positivas |
+| largos / cortos | +0,233R / +0,285R — las dos |
+| otra fuente (velas de XM, 31d) | 35 ops, +0,600R, **3,7σ** |
+| **quitar el mejor par** | 69 ops, +0,151R, **1,2σ** ← lo mas flojo |
+
+**Es lo unico del proyecto que pasa la bateria entera.** En produccion como `--min-stop-pips=18`.
+Se expresa en PIPS y no como fraccion del spread porque el spread es plano: las dos cosas serian
+equivalentes, y en pips se ve lo que de verdad hace.
+
+Se elige 18 y no 22 porque deja un 27% mas de operaciones y las cinco filas van en la misma
+direccion; cual es la mejor, con 94 operaciones, es ruido.
+
 ## LO QUE HACE QUE ESTO PUEDA GANAR: elegir, no ensanchar (14 sep)
 
 Con los spreads reales de XM, **ninguna** combinacion de colchon, objetivo y minRiesgoAtr sale

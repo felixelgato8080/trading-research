@@ -673,6 +673,31 @@ def main():
     # El spread del instante se guarda en CADA orden y en cada llenado, se ponga o no el filtro.
     ap.add_argument("--tope-peaje", type=float, default=1.0,
                     help="fraccion del riesgo que puede llevarse el spread (1,0 = no filtra)")
+    # EL MINIMO DE STOP, que es lo unico que ha pasado la bateria entera de controles.
+    #
+    # Medido el 14 sep sobre 81 dias (440 señales) con el spread REAL de XM por hora:
+    #
+    #     sin minimo    4,98 ops/dia   33% acierto   bruto +0,091R   NETO -0,171R   -3,1 sigma
+    #     >= 12 pips    2,41           41%                 +0,139R         +0,002R    0,0
+    #     >= 15 pips    1,73           45%                 +0,219R         +0,113R    1,2
+    #     >= 18 pips    1,16           51%                 +0,356R         +0,249R    2,3
+    #     >= 22 pips    0,91           55%                 +0,450R         +0,353R    2,9
+    #
+    # Y NO FUNCIONA POR EL COSTE, que es lo que se creyo primero: el mismo filtro mejora igual
+    # con spread CERO (49% -> 64% -> 72% de acierto). O sea que no esta quitando operaciones
+    # caras: esta seleccionando señales mejores. Las zonas grandes valen mas, que es coherente
+    # con lo que dice el SMC —un desequilibrio mayor es una señal mas fuerte— pero es una
+    # hipotesis DISTINTA de la del peaje y hay que tratarla como tal.
+    #
+    # Pasa los controles: las dos mitades del calendario (+0,310R y +0,188R), las dos
+    # direcciones (+0,233R y +0,285R), y la otra fuente de datos (velas de XM, 31 dias: 35 ops,
+    # +0,600R, 3,7 sigma). Lo mas flojo es quitar el mejor par, que deja +0,151R con 1,2 sigma.
+    #
+    # Se expresa en PIPS y no como fraccion del spread porque el spread de esta cuenta es PLANO
+    # por horas (2,5-2,7 en USDJPY las 24 horas, salvo el vuelco de las 21h), asi que las dos
+    # cosas serian equivalentes — y en pips se ve lo que de verdad hace.
+    ap.add_argument("--min-stop-pips", type=float, default=0.0,
+                    help="descartar las señales con el stop por debajo de esto (0 = no filtra)")
     # TODOS NUESTROS PARES SON CRUCES DEL YEN. Cuatro largos son la misma apuesta cuatro veces,
     # y el tope de posiciones no lo ve porque cuenta posiciones, no direcciones.
     ap.add_argument("--tope-divisa", type=float, default=2.0,
@@ -874,6 +899,19 @@ def main():
             if (expuesto + exp) > cuenta.balance * args.tope_nocional:
                 print(f"   ojo  {ident:<26} exposicion acumulada "
                       f"{(expuesto + exp) / cuenta.balance:.0f}x, stop de {pips:.1f}p")
+
+            if pips < args.min_stop_pips:
+                print(f"   - {ident:<28} stop de {pips:.1f}p, por debajo del minimo de "
+                      f"{args.min_stop_pips:.0f}p")
+                if args.enserio:
+                    est["puestas"][ident] = {
+                        "ticket": None, "par": p["par"], "direccion": p["direccion"],
+                        "entrada_pedida": p["entrada"], "stop": p["stop"],
+                        "objetivo": p["objetivo"], "lotes": 0, "riesgo_pedido": 0.0,
+                        "puesta": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                        "tSeñal": p["tSeñal"], "descartada": f"stop {pips:.1f}p",
+                    }
+                continue
 
             # EL SPREAD DEL INSTANTE. Se lee aqui, con la orden ya decidida, que es el unico
             # momento en que la medida significa algo: el coste de ESTA operacion, no el de un
