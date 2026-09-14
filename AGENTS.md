@@ -224,7 +224,32 @@ desequilibrio mayor es una señal mas fuerte— pero **es una hipotesis distinta
 **Y GBPJPY era un espejismo.** En los 31 dias de MT5 daba +0,787R y el 84% del resultado; en los
 81 dias de Yahoo da **−0,001R**. Exactamente cero.
 
-### EL NUMERO, con el spread real por hora y 81 dias
+### EL NUMERO BUENO: sobre los precios DEL BROKER, 83 dias
+
+Felix pregunto si la tabla estaba hecha con el backtest de Yahoo. Lo estaba. Rehecho con las
+velas de XM sobre la misma ventana —y con el spread real por hora, que tambien es de XM:
+
+| min stop | ops/dia | acierto | esperanza | sigma | pips/mes |
+|---|---|---|---|---|---|
+| sin minimo | 5,20 | 27% | −0,348R | −6,7σ | **−520** |
+| 12 pips | 1,76 | 44% | +0,064R | 0,7σ | 61 |
+| 15 pips | 1,16 | 52% | +0,288R | 2,6σ | 251 |
+| **18 pips** | **0,93** | **58%** | **+0,456R** | **3,8σ** | **331** |
+| 22 pips | 0,69 | 61% | +0,487R | 3,6σ | 288 |
+| 26 pips | 0,51 | 52% | +0,278R | 1,9σ | 134 |
+
+**Y LA CURVA TIENE UN PICO, que es lo que mas tranquiliza.** En Yahoo subia sin parar hasta 26
+pips, y una curva monotona invita a apretar indefinidamente: eso casi siempre es sobreajuste. En
+los precios de verdad **el maximo esta justo en 18** y a partir de ahi empeora. Que el umbral
+elegido por otra via resulte optimo en los datos buenos es la mejor señal del dia.
+
+**MAS OPERACIONES DAN MENOS DINERO**, y no poco: sin minimo son 5,2 al dia y −520 pips al mes;
+con 18 son 0,93 al dia y +331. Cada operacion que se añade por debajo del umbral resta.
+
+Ojo con la independencia: las dos ventanas se solapan en el calendario (83 y 81 dias del mismo
+periodo), asi que lo independiente es la FUENTE de precios, no el tiempo.
+
+### La misma tabla sobre Yahoo, que es como se encontro
 
 | stop minimo | ops/dia | acierto | bruto | **NETO** | sigma |
 |---|---|---|---|---|---|
