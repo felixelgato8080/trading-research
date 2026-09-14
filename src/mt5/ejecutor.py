@@ -828,6 +828,9 @@ def main():
     ap.add_argument("--min-stop", default="",
                     help="min-stop por registro: 'sep40=18,video=5'. Lo que no aparezca usa "
                          "--min-stop-pips")
+    ap.add_argument("--peaje", default="",
+                    help="tope de peaje por registro: 'video=0.5'. Lo que no aparezca usa "
+                         "--tope-peaje")
     ap.add_argument("--desvio-puntos", type=int, default=20,
                     help="deslizamiento maximo aceptado en una orden a mercado, en puntos")
     ap.add_argument("--rr-minimo-mercado", type=float, default=1.0,
@@ -1060,18 +1063,46 @@ def main():
     # Medido el 14 sep con el spread de la cuenta nueva, `video` con min-stop 5 da +0,485R sobre
     # 51 operaciones, y con el spread VIEJO ese mismo filtro daba -0,068R: el filtro no valia
     # antes y vale ahora. Esa es la razon de que esto exista.
-    min_stop_de = {}
-    for trozo in args.min_stop.split(","):
-        if not trozo.strip():
-            continue
-        k, _, v = trozo.partition("=")
-        try:
-            min_stop_de[k.strip()] = float(v)
-        except ValueError:
-            raise SystemExit(f"--min-stop mal escrito en '{trozo}'. Se espera 'etiqueta=pips'.")
+    def por_registro(texto, bandera, unidad):
+        out = {}
+        for trozo in texto.split(","):
+            if not trozo.strip():
+                continue
+            k, _, v = trozo.partition("=")
+            try:
+                out[k.strip()] = float(v)
+            except ValueError:
+                raise SystemExit(f"{bandera} mal escrito en '{trozo}'. Se espera 'etiqueta={unidad}'.")
+        return out
+
+    min_stop_de = por_registro(args.min_stop, "--min-stop", "pips")
+
+    # EL PEAJE ES EL FILTRO CORRECTO CUANDO EL OBJETIVO ES UN NIVEL, y el min-stop cuando es un
+    # multiplo fijo del riesgo. No es una preferencia: son dos estrategias con aritmetica distinta.
+    #
+    # En `ul2` el objetivo es 1,5R fijo, asi que el tamaño del stop no cambia el multiplo que se
+    # cobra: de sus 163 operaciones en 31 dias, NINGUNA paso de 2,3R. Ahi filtrar por stop no
+    # puede comerse una ganadora grande porque no las hay.
+    #
+    # En `video` el objetivo esta en la liquidez anterior, o sea en un PRECIO. Sobre un stop de 3
+    # pips ese mismo recorrido son 10R, y sobre uno de 12 son 2R. El stop pequeño no es el
+    # defecto: es de donde sale el beneficio. Medido sobre 31 dias, de sus 16 operaciones de 3R o
+    # mas, el min-stop de 5 conservaba OCHO; el peaje al 50% conserva TRECE:
+    #
+    #     min-stop 5     1,81 ops/dia   +0,475R   262 pips/mes   mejor 12,0R
+    #     peaje <= 50%   3,43           +0,437R   329            mejor 15,2R
+    #
+    # Casi el doble de operaciones y un 26% mas de pips, con la misma esperanza. Y el 14 sep, en
+    # vivo, ese filtro dejo pasar 5 señales que dieron +0,01R mientras rechazaba 13 que dieron
+    # +15,08R; las tres mejores del dia (+10,3R, +7,5R, +4,9R) tenian stops de 3,0 a 4,4 pips.
+    #
+    # Ademas el peaje se mide con el spread DEL INSTANTE, no con una media: es el coste de esta
+    # operacion y no el de un muestreo que quiza cayo en otro minuto.
+    peaje_de = por_registro(args.peaje, "--peaje", "fraccion")
 
     for etiqueta, ruta, reg in registros:
         min_stop = min_stop_de.get(etiqueta, args.min_stop_pips)
+        tope_peaje = peaje_de.get(etiqueta, args.tope_peaje)
         pendientes = reg.get("pendientes", [])
         print(f"\n-- {etiqueta or os.path.basename(ruta)}: {len(pendientes)} pendiente(s) "
               f"en el registro")
@@ -1187,7 +1218,7 @@ def main():
             if tick is not None and tick.ask > 0 and tick.bid > 0:
                 spread_pips = (tick.ask - tick.bid) / (0.01 if "JPY" in sym else 0.0001)
                 pj = peaje(spread_pips, pips)
-                if pj > args.tope_peaje:
+                if pj > tope_peaje:
                     print(f"   - {ident:<28} peaje: el spread ({spread_pips:.2f}p) se lleva el "
                           f"{pj * 100:.0f}% de un stop de {pips:.1f}p")
                     # SE APUNTA LO RECHAZADO, CON SU SPREAD. Sin esto no se puede saber despues

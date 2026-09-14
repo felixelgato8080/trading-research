@@ -213,7 +213,7 @@ seria justo lo que estas secciones existen para impedir.
 |---|---|---|---|
 | `sep40` | div-ul-sep40 | divergencias RSI 14, maxSep 40, colchon 2 | 18 p |
 | `ul2` | div-ul2 | lo mismo con maxSep 60 | 8 p |
-| `video` | div-ul-video | la del video, 12 pares, objetivo liquidez | 5 p |
+| `video` | div-ul-video | la del video, 12 pares, objetivo liquidez | peaje <= 50% |
 | `pbv1` | pb-v1 | retroceso del RSI, **entrada a mercado** | 8 p |
 
 **Lo que predice**, medido sobre 31 dias de velas de XM con el spread nuevo y QUITANDO las ideas
@@ -221,14 +221,14 @@ repetidas —que es lo que de verdad se va a operar, no la suma de las cuatro:
 
 | | |
 |---|---|
-| operaciones | **5,05 al dia · ~150 al mes** |
-| esperanza | **entre 0 y +0,12R** |
-| pips/mes | 200-640 |
+| operaciones | **6,74 al dia · ~200 al mes** |
+| esperanza | **entre 0 y +0,15R** |
+| pips/mes | 250-720 |
 
 **La horquilla va deliberadamente por debajo de lo medido, y aqui esta el porque.** El backtest de
-esos 31 dias da +0,172R, pero esos 31 dias son el trimestre bueno: la misma `sep40` que ahi sale a
+esos 31 dias da +0,251R, pero esos 31 dias son el trimestre bueno: la misma `sep40` que ahi sale a
 +0,964R dio **+0,174R sobre 244 dias**. Un factor 5,5 entre la ventana corta y la larga. Aplicarle
-ese mismo descuento al +0,172R deja algo cercano a cero, y eso es lo que hay que esperar.
+ese mismo descuento al +0,251R deja algo cercano a cero, y eso es lo que hay que esperar.
 
 **Lo que cada una aporta DE PROPIO** (lo que no cogeria otra antes), porque es donde estara la
 respuesta interesante:
@@ -236,22 +236,58 @@ respuesta interesante:
 | | ops/dia propias | esperanza de esas |
 |---|---|---|
 | `sep40` | 0,78 | +0,964R |
-| `ul2` | 2,59 | +0,139R |
-| `video` | 0,49 | **-0,303R** |
-| `pbv1` | 1,20 | -0,078R |
+| `ul2` | 2,59 | +0,170R |
+| `video` | 2,04 | +0,355R |
+| `pbv1` | 1,33 | -0,168R |
 
 **Las dos preguntas que este registro existe para contestar:**
 
-1. **¿Aporta algo `video` por su cuenta?** Su parte buena ya la coge `ul2`; lo que añade de propio
-   son sus peores señales. Son 15 operaciones en el backtest, o sea nada, pero el mecanismo es
-   claro. Si en vivo confirma, sale del ejecutor.
+1. **¿Vale el peaje como filtro donde el objetivo es un nivel?** Es el cambio del 15 sep y hay
+   que vigilarlo. Ver la seccion de abajo.
 2. **¿El retroceso del RSI funciona a pesar del backtest?** Da -0,240R sin filtro y -0,078R con
    min-stop 8. Se ejecuta igual, y a proposito: `div-video` tenia un backtest de -0,279R sobre 783
    operaciones y en vivo lleva **+15,98R con PF 1,46**. Esta es la segunda vez que se pone a correr
    algo que el backtest desaconseja, y la primera vez el backtest se equivoco.
 
-**Lo que declararia muerto al conjunto:** esperanza negativa sobre 200 operaciones cerradas. A 150
-al mes, **mes y medio**.
+### EL FILTRO CAMBIO EL 15 SEP: el peaje sustituye al min-stop en `video`
+
+**El problema, visto en vivo.** El 14 sep un apagon dejo el equipo 7 horas parado. Al volver, el
+registro en papel tenia 18 operaciones que se habian llenado durante el corte, y se pudo preguntar
+que habria hecho el ejecutor con ellas:
+
+    las que su min-stop dejaba pasar     5 ops   +0,01R
+    las que su min-stop rechazaba       13 ops  +15,08R
+
+Las tres mejores del dia —+10,3R, +7,5R y +4,9R— tenian stops de 3,0 a 4,4 pips. El filtro se
+estaba comiendo exactamente las ganadoras.
+
+**Y no era mala suerte, es aritmetica.** El min-stop en pips es el filtro correcto cuando el
+objetivo es un MULTIPLO FIJO del riesgo, como en `ul2`: ahi el tamaño del stop no cambia lo que se
+cobra, y de sus 163 operaciones en 31 dias ninguna paso de 2,3R — no hay ganadora grande que
+comerse. En `video` el objetivo esta en la liquidez anterior, o sea en un PRECIO: el mismo
+recorrido sobre un stop de 3 pips son 10R y sobre uno de 12 son 2R. **El stop pequeño no es el
+defecto, es de donde sale el beneficio.**
+
+**La razon real para rechazar un stop pequeño es que el spread se lo coma**, y eso es el PEAJE
+(spread / stop), no el tamaño del stop. Medido sobre 31 dias, de las 16 operaciones de `video` que
+dieron 3R o mas:
+
+| filtro | ops/dia | esperanza | pips/mes | mejor | ganadoras >=3R conservadas |
+|---|---|---|---|---|---|
+| min-stop 5 | 1,81 | +0,475R | 262 | 12,0R | 8 de 16 |
+| **peaje <= 50%** | **3,43** | +0,437R | **329** | **15,2R** | **13 de 16** |
+
+Casi el doble de operaciones y un 26% mas de pips con la misma esperanza. Sobre el conjunto entero
+el cambio lleva de 5,34 a 6,74 operaciones al dia y de +0,165R a +0,251R.
+
+El peaje ademas se mide con el spread **del instante** en que se manda la orden, no con una media
+de muestreo: es el coste de esa operacion concreta.
+
+**`ul2`, `sep40` y `pbv1` siguen con min-stop** porque los tres tienen objetivo en multiplo fijo y
+ahi el min-stop es lo correcto. Este cambio es de `video` y solo de `video`.
+
+**Lo que declararia muerto al conjunto:** esperanza negativa sobre 200 operaciones cerradas. A 200
+al mes, **un mes**.
 
 **EL MIN-STOP DE `ul2` SE PUSO EN 8 JUSTO ANTES DE CONGELAR**, y el motivo es el unico que
 justifica tocar algo a estas alturas: los pips/mes son PLANOS entre min-stop 0 y 12 (600-641), asi
