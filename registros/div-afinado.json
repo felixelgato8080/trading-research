@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-12T20:24:28.285Z",
-  "ultima": "2026-09-15T15:17:40.594Z",
-  "pasadas": 193,
+  "ultima": "2026-09-15T15:32:12.040Z",
+  "pasadas": 194,
   "ajustes": {
     "modo": "afinado",
     "div": {
@@ -39,24 +39,7 @@
   "costeBps": 0.6,
   "vigencia": 60,
   "pendientes": [],
-  "abiertas": [
-    {
-      "par": "AUDJPY=X",
-      "direccion": "CORTO",
-      "entrada": 110.54499816894531,
-      "stop": 110.6090087890625,
-      "objetivo": 110.44898223876953,
-      "rr": 1.5,
-      "apuntada": "2026-09-15T15:02:14.935Z",
-      "tSeñal": 1789483800,
-      "caducaEn": 1789501800,
-      "velasDeRetraso": 2,
-      "abierta": "2026-09-15T15:02:14.935Z",
-      "tEntrada": 1789484100,
-      "entradaReal": 110.54499816894531,
-      "marca": 58.224772889621796
-    }
-  ],
+  "abiertas": [],
   "cerradas": [
     {
       "par": "EURJPY=X",
@@ -246,13 +229,34 @@
       "salida": 208.90000915527344,
       "r": -1.1026698974487243,
       "motivo": "STOP"
+    },
+    {
+      "par": "AUDJPY=X",
+      "direccion": "CORTO",
+      "entrada": 110.54499816894531,
+      "stop": 110.6090087890625,
+      "objetivo": 110.44898223876953,
+      "rr": 1.5,
+      "apuntada": "2026-09-15T15:02:14.935Z",
+      "tSeñal": 1789483800,
+      "caducaEn": 1789501800,
+      "velasDeRetraso": 2,
+      "abierta": "2026-09-15T15:02:14.935Z",
+      "tEntrada": 1789484100,
+      "entradaReal": 110.54499816894531,
+      "marca": 58.224772889621796,
+      "cerrada": "2026-09-15T15:32:12.040Z",
+      "tSalida": 1789485300,
+      "salida": 110.6090087890625,
+      "r": -1.1036187413587604,
+      "motivo": "STOP"
     }
   ],
   "vistoHasta": {
-    "USDJPY=X": 1789485300,
-    "GBPJPY=X": 1789485300,
-    "EURJPY=X": 1789485300,
-    "AUDJPY=X": 1789485300
+    "USDJPY=X": 1789486200,
+    "GBPJPY=X": 1789486200,
+    "EURJPY=X": 1789486200,
+    "AUDJPY=X": 1789486200
   },
   "discrepancias": []
 }
