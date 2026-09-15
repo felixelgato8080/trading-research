@@ -661,18 +661,31 @@ def poner_orden(sym, info, p, lotes, caduca, enserio, ident, entrada_mercado=Non
         getattr(mt5, "TRADE_RETCODE_INVALID_EXPIRATION", 10022),
         getattr(mt5, "TRADE_RETCODE_INVALID_ORDER", 10013),
     }
-    ultimo = ""
+    # SE GUARDA EL PRIMER RECHAZO, NO EL ULTIMO, y la diferencia importa.
+    #
+    # Antes se sobrescribia en cada reintento. Si la orden fallaba por un motivo DE FONDO —sin
+    # saldo, precio invalido, mercado cerrado— los reintentos fallaban ademas por el modo de
+    # llenado, y el log acababa diciendo "Unsupported filling mode". Un informe que nombra mal
+    # la causa es peor que no tenerlo, porque se lee y se cree.
+    #
+    # Comprobado contra el broker el 15 sep con `order_check`: a mercado SOLO acepta IOC (FOK y
+    # RETURN dan 10030), asi que los dos reintentos de una de mercado fallan siempre por formato
+    # y taparian cualquier motivo real.
+    primero = ""
+    intentos = 0
     for nombre, cambio in variantes:
+        intentos += 1
         r = mt5.order_send({**pet, **cambio})
         if r is None:
-            ultimo = f"order_send devolvio None: {mt5.last_error()}"
-            break
+            return False, None, primero or f"order_send devolvio None: {mt5.last_error()}"
         if r.retcode == mt5.TRADE_RETCODE_DONE:
             return True, r.order, "" if nombre == "como se pidio" else f"aceptada con {nombre}"
-        ultimo = f"rechazada: retcode={r.retcode} {r.comment}"
+        if not primero:
+            primero = f"rechazada: retcode={r.retcode} {r.comment}"
         if r.retcode not in de_formato:
             break
-    return False, None, ultimo
+    cola = f" (probadas {intentos} variantes de formato)" if intentos > 1 else ""
+    return False, None, primero + cola
 
 
 def cobertura(registros, est):
