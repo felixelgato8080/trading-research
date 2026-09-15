@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-12T20:24:28.285Z",
-  "ultima": "2026-09-15T18:02:20.601Z",
-  "pasadas": 204,
+  "ultima": "2026-09-15T18:17:12.537Z",
+  "pasadas": 205,
   "ajustes": {
     "modo": "afinado",
     "div": {
@@ -295,10 +295,10 @@
     }
   ],
   "vistoHasta": {
-    "USDJPY=X": 1789495200,
-    "GBPJPY=X": 1789495200,
-    "EURJPY=X": 1789495200,
-    "AUDJPY=X": 1789495200
+    "USDJPY=X": 1789496100,
+    "GBPJPY=X": 1789496100,
+    "EURJPY=X": 1789496100,
+    "AUDJPY=X": 1789496100
   },
   "discrepancias": []
 }
