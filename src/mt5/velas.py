@@ -72,7 +72,27 @@ def desfase_servidor(pares):
                 mejor = t
     if mejor is None:
         return 0
-    return int(round((mejor - time.time()) / 1800.0) * 1800)
+    desfase = int(round((mejor - time.time()) / 1800.0) * 1800)
+    # UN DESFASE IMPOSIBLE NO ES UN DESFASE: es que las velas venian rancias.
+    #
+    # Esto se deduce de la vela mas nueva, y da la respuesta correcta SOLO si esa vela es de
+    # ahora. El 15 sep el terminal acababa de cambiar de cuenta y devolvio historial viejo: la
+    # vela mas nueva era de 17,5 h antes, asi que aqui salio un desfase de -17,5 h.
+    #
+    # Y entonces todo el fichero quedo fechado 20 horas EN EL FUTURO. Peor todavia: la guarda de
+    # velas rancias resta este mismo desfase para calcular la antiguedad, asi que le salio
+    # NEGATIVA y dio las velas por frescas. Seis registros apuntaron una señal inventada.
+    #
+    # Ningun broker del mundo esta a mas de 14 horas de UTC. Fuera de ese margen no se adivina:
+    # se para, porque un fichero con fechas falsas contamina los registros en silencio.
+    if not (-12 * 3600 <= desfase <= 14 * 3600):
+        raise SystemExit(
+            f"el desfase deducido son {desfase / 3600:+.1f} h, que no existe en ningun broker.\n"
+            "Suele significar que el terminal devolvio velas viejas (recien cambiado de cuenta,\n"
+            "o aun descargando historial). No se escribe nada: un fichero mal fechado envenena\n"
+            "los registros sin que nada falle."
+        )
+    return desfase
 
 
 def sacar(simbolo, tf, n, desfase):

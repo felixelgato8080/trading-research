@@ -99,6 +99,14 @@ export function leerVelas(
     fuente: datos.fuente ?? "?",
     // La ultima vela del fichero esta EN CURSO, asi que su antiguedad natural es de hasta un
     // paso. Se mide contra el final de esa vela para que "0" signifique al dia.
-    antiguedad: Math.max(0, ahora - (ultima + paso)),
+    //
+    // EL VALOR ABSOLUTO NO SOBRA. Antes esto era `Math.max(0, ...)`, asi que una vela fechada en
+    // el FUTURO daba antiguedad 0 y pasaba por fresca. El 15 sep el exportador dedujo mal el
+    // desfase del servidor y escribio el fichero 20 horas adelantado; la guarda no vio nada y
+    // seis registros apuntaron una señal inventada.
+    //
+    // Una vela del futuro no es fresca: es tan invalida como una vieja, y por el mismo motivo
+    // —su fecha no es la que dice— asi que cuenta igual de antigua.
+    antiguedad: Math.abs(ahora - (ultima + paso)),
   };
 }

@@ -49,3 +49,28 @@ test("un par sin velas no rompe ni aparece", () => {
   assert.equal(r.velas.has("USDJPY=X"), false);
   assert.equal(r.velas.has("GBPJPY=X"), true);
 });
+
+test("UNA VELA DEL FUTURO NO ES FRESCA, es tan invalida como una vieja", () => {
+  // El 15 sep el exportador dedujo mal el desfase del servidor y escribio el fichero 20 horas
+  // ADELANTADO. Con `Math.max(0, ...)` la antiguedad salia 0, las velas pasaban por frescas y
+  // seis registros apuntaron una señal inventada.
+  //
+  // Una vela fechada en el futuro no es reciente: su fecha simplemente no es la que dice.
+  const ahora = 1_000_000;
+  const futuro: VelasDeFichero = {
+    fuente: "MT5", desfase: 0, sacadas: "x",
+    tf: { "5m": { "EURUSD=X": [{ t: ahora + 20 * 3600, o: 1, h: 1, l: 1, c: 1 }] } },
+  };
+  const r = leerVelas(futuro, "5m", ahora);
+  assert.ok(r.antiguedad > 3600, `antiguedad ${r.antiguedad}, deberia ser grande`);
+});
+
+test("una vela de ahora sigue contando como fresca", () => {
+  // La otra mitad: el arreglo no puede volver rancio lo que esta al dia.
+  const ahora = 1_000_000;
+  const alDia: VelasDeFichero = {
+    fuente: "MT5", desfase: 0, sacadas: "x",
+    tf: { "5m": { "EURUSD=X": [{ t: ahora - 300, o: 1, h: 1, l: 1, c: 1 }] } },
+  };
+  assert.equal(leerVelas(alDia, "5m", ahora).antiguedad, 0);
+});
