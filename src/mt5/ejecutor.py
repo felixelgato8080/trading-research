@@ -49,6 +49,7 @@ from datetime import datetime, timedelta, timezone, date
 # Vive en `simbolos.py` para que el exportador de velas resuelva el nombre EXACTAMENTE igual.
 # Se reexporta desde aqui porque las pruebas y el propio ejecutor ya lo importaban de este modulo.
 from cuenta import exigir_cuenta
+from terminal import conectar
 from simbolos import operables_de, simbolo_broker
 
 try:
@@ -823,6 +824,8 @@ def main():
     ap.add_argument("--estado", required=True, help="donde el ejecutor lleva su cuenta")
     ap.add_argument("--cuenta", type=int, default=0,
                     help="login que DEBE tener el terminal; si no, no se manda nada")
+    ap.add_argument("--terminal", default="",
+                    help="ruta a terminal64.exe; con varios instalados, cual usar")
     ap.add_argument("--enserio", action="store_true",
                     help="mandar de verdad. Sin esto solo dice lo que haria")
     ap.add_argument("--riesgo", type=float, default=0.25,
@@ -984,8 +987,9 @@ def main():
         print("Ningun registro legible en esta pasada. No se hace nada.")
         return
 
-    if not mt5.initialize():
-        raise SystemExit(f"no se pudo conectar con el terminal: {mt5.last_error()}")
+    mal = conectar(mt5, args.terminal)
+    if mal:
+        raise SystemExit(mal)
     cuenta = exigir_demo(args.cuenta)
     print(f"cuenta {cuenta.login} · {cuenta.server} · DEMO · saldo {cuenta.balance:.2f} "
           f"{cuenta.currency} · 1:{cuenta.leverage}")

@@ -36,6 +36,7 @@ import os
 import time
 
 from cuenta import exigir_cuenta
+from terminal import conectar
 from simbolos import operables_de, simbolo_broker
 from datetime import datetime, timezone
 
@@ -108,6 +109,8 @@ def main():
                     help="velas de la temporalidad mas corta; las demas se escalan")
     ap.add_argument("--cuenta", type=int, default=0,
                     help="login que DEBE tener el terminal; si no, no se escribe nada")
+    ap.add_argument("--terminal", default="",
+                    help="ruta a terminal64.exe; con varios instalados, cual usar")
     args = ap.parse_args()
 
     pares = [x.strip() for x in args.pares.split(",") if x.strip()]
@@ -127,8 +130,9 @@ def main():
         if t not in TF:
             raise SystemExit(f"temporalidad desconocida: {t}. Hay {', '.join(TF)}")
 
-    if not mt5.initialize():
-        raise SystemExit(f"no se pudo conectar con el terminal: {mt5.last_error()}")
+    mal = conectar(mt5, args.terminal)
+    if mal:
+        raise SystemExit(mal)
 
     # ANTES DE LEER UNA SOLA VELA. El terminal se engancha a la cuenta que haya puesta, y
     # cada cuenta trae su grupo de simbolos con su spread. Sacar las velas de la cuenta
