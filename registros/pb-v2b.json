@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "pullback",
   "inicio": "2026-09-14T05:49:02.012Z",
-  "ultima": "2026-09-16T00:55:13.745Z",
-  "pasadas": 198,
+  "ultima": "2026-09-16T01:15:13.720Z",
+  "pasadas": 202,
   "ajustes": {
     "version": "V2(adxSubiendoDesde=0)",
     "fuente": "MT5 #",
@@ -82,12 +82,12 @@
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1789519800,
-    "GBPUSD=X": 1789519800,
-    "USDJPY=X": 1789519800,
-    "EURJPY=X": 1789519800,
-    "GBPJPY=X": 1789519800,
-    "AUDUSD=X": 1789519800
+    "EURUSD=X": 1789521000,
+    "GBPUSD=X": 1789521000,
+    "USDJPY=X": 1789521000,
+    "EURJPY=X": 1789521000,
+    "GBPJPY=X": 1789521000,
+    "AUDUSD=X": 1789520700
   },
   "discrepancias": [
     "RETIRADA cerradas AUDUSD=X CORTO tSeñal=1789455600 r=+1.381. RETIRADA por la pasada del 2026-09-15T22:25 UTC. El exportador dedujo el desfase del servidor como -17,5 h (el terminal, recien cambiado de cuenta, devolvio historial viejo) y escribio el fichero de velas con las fechas corridas +20,5 h. Los grabadores lo leyeron una vez y volvieron a apuntar historia ya apuntada como si fuera nueva. Arreglado en velas.py (un desfase imposible para el exportador) y en velasFichero.ts (una vela fechada en el futuro cuenta como rancia, antes daba antiguedad 0 y pasaba por fresca).",

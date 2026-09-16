@@ -12,7 +12,7 @@ import unittest
 from ejecutor import (
     divisas, exposicion_divisas, identidad, limitada_valida, lote, mercado_valido, nocional,
     peaje, perdida_del_dia, que_hacer, riesgo_hueco, senal_fresca, simbolo_broker,
-    desfase_reloj, tick_utilizable,
+    desfase_reloj, reloj_del_mercado, tick_utilizable,
 )
 from simbolos import operables_de
 
@@ -485,3 +485,61 @@ class CaducidadDeMercado(unittest.TestCase):
     def test_una_limitada_dentro_de_plazo_se_pone(self):
         poner, _ = que_hacer([self.pendiente()], set(), 1200, 12, 0)
         self.assertEqual(len(poner), 1)
+
+
+class ElRelojDelMercado(unittest.TestCase):
+    """
+    De donde sale el reloj con el que se mide si una cotizacion sirve.
+
+    Importa porque el spread de esa cotizacion es el que decide el PEAJE: medirlo sobre un tick
+    viejo rechaza operaciones por un coste que no es el suyo, y eso es perder una operacion por
+    un fallo de medida.
+    """
+
+    AHORA = 1_789_500_000
+    XM = 3 * 3600
+
+    def test_sale_del_tick_mas_nuevo_y_no_del_mas_viejo(self):
+        # Un par parado y otro cotizando: manda el que cotiza.
+        parado = self.AHORA + self.XM - 40 * 3600
+        vivo = self.AHORA + self.XM - 3
+        d, n = reloj_del_mercado([parado, vivo], self.AHORA)
+        self.assertEqual((d, n), (self.XM, 2))
+
+    def test_sin_cotizaciones_no_se_inventa_ninguna_hora(self):
+        self.assertEqual(reloj_del_mercado([], self.AHORA), (0, 0))
+        self.assertEqual(reloj_del_mercado([0, None], self.AHORA), (0, 0))
+
+    def test_DEDUCIRLO_DEL_MISMO_TICK_SE_CANCELA_SOLO(self):
+        # La razon de que esta funcion exista. Con el desfase sacado del propio tick, la edad que
+        # sale es el resto de (tick - ahora) entre media hora: nunca pasa de 900 s, por viejo que
+        # sea. Un tick de hace DOS DIAS pasa por recien hecho.
+        viejo = self.AHORA + self.XM - 48 * 3600
+        circular = desfase_reloj(viejo, self.AHORA)
+        edad_circular = self.AHORA - (viejo - circular)
+        self.assertLessEqual(abs(edad_circular), 900)
+
+        # Con el reloj sacado de un par que si cotiza, los dos dias se ven enteros.
+        bueno, _ = reloj_del_mercado([viejo, self.AHORA + self.XM - 2], self.AHORA)
+        self.assertAlmostEqual((self.AHORA - (viejo - bueno)) / 3600, 48, places=3)
+
+    def test_y_entonces_tick_utilizable_hace_su_trabajo(self):
+        class Tick:
+            bid, ask = 1.1, 1.1001
+
+        t = Tick()
+        t.time = self.AHORA + self.XM - 48 * 3600
+        # Con el reloj circular la da por buena; con el del mercado, no.
+        self.assertTrue(tick_utilizable(t, desfase_reloj(t.time, self.AHORA), self.AHORA)[0])
+        bueno, _ = reloj_del_mercado([t.time, self.AHORA + self.XM - 2], self.AHORA)
+        vale, edad, motivo = tick_utilizable(t, bueno, self.AHORA)
+        self.assertFalse(vale)
+        self.assertIn("mercado parece cerrado", motivo)
+
+    def test_un_retraso_de_media_hora_justa_es_el_caso_peor(self):
+        # No hace falta el fin de semana: cualquier retraso cercano a un multiplo de media hora
+        # se cancela igual, y en horas finas eso pasa.
+        t = self.AHORA + self.XM - 1800
+        self.assertEqual(self.AHORA - (t - desfase_reloj(t, self.AHORA)), 0)
+        bueno, _ = reloj_del_mercado([t, self.AHORA + self.XM - 1], self.AHORA)
+        self.assertEqual(self.AHORA - (t - bueno), 1800)

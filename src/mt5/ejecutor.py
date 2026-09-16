@@ -217,8 +217,40 @@ def desfase_reloj(tick_time, ahora_seg):
 
     Es el mismo fallo que ya aparecio tres veces en este proyecto —en el informe de spread, en el
     exportador de velas y en el historial de operaciones—, asi que aqui se deduce y no se supone.
+
+    CON UN SOLO TICK NO SE PUEDE COMPROBAR ESE MISMO TICK. Ver `reloj_del_mercado`.
     """
     return round((tick_time - ahora_seg) / 1800.0) * 1800
+
+
+def reloj_del_mercado(tiempos, ahora_seg):
+    """
+    El desfase del servidor, deducido del tick MAS NUEVO de todo el mercado.
+
+    POR QUE NO VALE DEDUCIRLO DEL TICK QUE SE VA A COMPROBAR. Es circular, y se cancela solo:
+
+        desfase = redondear(tick - ahora)          a la media hora
+        edad    = ahora - (tick - desfase)         = el resto de (tick - ahora) mod 1800
+
+    O sea que la edad que sale NUNCA pasa de 900 segundos, por viejo que sea el tick. Con el
+    mercado cerrado desde el viernes la cuenta da ~0 y la cotizacion pasa por fresca: justo lo
+    que `tick_utilizable` existe para impedir. Y en horas finas, cualquier retraso cercano a un
+    multiplo de media hora cuela igual, porque el resto vuelve a caer cerca de cero.
+
+    Eso importa porque el spread de ese tick es el que decide el PEAJE. Un tick de cierre de
+    viernes lleva el peor spread de la semana, y filtrar con el rechaza operaciones por un coste
+    que no es el suyo: una operacion perdida por un fallo de medida, no por cara.
+
+    Con el tick mas nuevo de TODOS los simbolos la cuenta deja de ser circular: basta con que un
+    par cotice para que el reloj salga bien, y entonces la antiguedad de los demas se mide de
+    verdad. Cuando no cotiza ninguno el mercado esta cerrado, y ahi no hay señal fresca que poner.
+
+    Devuelve (desfase, cuantos tiempos se usaron).
+    """
+    validos = [float(t) for t in tiempos if t]
+    if not validos:
+        return 0, 0
+    return desfase_reloj(max(validos), ahora_seg), len(validos)
 
 
 def tick_utilizable(tick, desfase, ahora_seg, max_edad=180):
@@ -1025,6 +1057,35 @@ def main():
     print(f"en el broker: {len(ordenes)} ordenes nuestras esperando · "
           f"{len(posiciones)} posiciones nuestras abiertas")
 
+    # EL RELOJ DEL SERVIDOR, UNA VEZ Y CON TODO EL MERCADO. Se saca del tick mas nuevo de los
+    # simbolos operables, no del tick de cada señal: deducirlo del mismo tick que luego se
+    # comprueba es circular y da siempre una antiguedad menor de 900 s, por viejo que sea.
+    #
+    # SE MIRAN LOS PARES DE LOS REGISTROS, no una muestra cualquiera de `operables`. Un simbolo
+    # que no esta en el Market Watch no da tick, y muestrear a ciegas podia salir con CERO
+    # cotizaciones: entonces el desfase seria 0, toda cotizacion pareceria tener tres horas y no
+    # entraria ni una orden a mercado. Estos son los que el bucle va a seleccionar de todas
+    # formas, y son los doce majors, que cotizan siempre que haya mercado.
+    _tiempos = []
+    for _par in sorted({o["par"] for _e, _r, _reg in registros
+                        for o in _reg["pendientes"] + _reg["abiertas"] + _reg["cerradas"][-40:]}):
+        _sym = simbolo_broker(_par, vivos, operables)
+        if _sym is None or _sym not in operables:
+            continue
+        mt5.symbol_select(_sym, True)
+        _t = mt5.symbol_info_tick(_sym)
+        if _t is not None and _t.time:
+            _tiempos.append(_t.time)
+    desfase, _n = reloj_del_mercado(_tiempos, ahora_seg)
+    if _n == 0:
+        # SIN NINGUNA COTIZACION NO HAY RELOJ, y sin reloj toda cotizacion parece vieja. Lo que
+        # pasa despues es correcto -no se pone nada- pero el motivo que saldria por señal seria
+        # "la cotizacion tiene 180 min", que es falso. Se dice aqui lo que de verdad ocurre.
+        print("NINGUNO de los pares de los registros cotiza: mercado cerrado, o el terminal "
+              "aun arrancando.\nNo se puede leer el reloj del servidor, asi que no se pone nada.")
+        return
+    print(f"reloj del servidor: {desfase / 3600:+.1f} h sobre UTC, leido de {_n} cotizaciones")
+
     # LA CADUCIDAD NO LA LLEVA EL BROKER, aunque el diseño lo diera por hecho.
     #
     # Se mandaba con ORDER_TIME_SPECIFIED, XM la rechaza y el reintento cae a GTC: la orden
@@ -1253,7 +1314,6 @@ def main():
             # ultimo tick del viernes, que lleva el spread de cierre —el peor de la semana—.
             # Filtrar por peaje contra ese numero rechazaria operaciones por un coste que no es
             # el suyo: seria perder una operacion por un fallo de medida.
-            desfase = desfase_reloj(tick.time, ahora_seg) if tick is not None else 0
             fresco, edad_tick, porque_tick = tick_utilizable(tick, desfase, ahora_seg)
             a_mercado = p.get("tipo") == "MERCADO"
             entrada_efectiva = p["entrada"]
