@@ -31,6 +31,7 @@ El desfase se deduce comparando la ultima vela con el reloj real, no se supone.
 SOLO LEE. Este fichero no manda ordenes.
 """
 import argparse
+import io
 import json
 import os
 import time
@@ -56,12 +57,60 @@ TF = {
 }
 
 
-def desfase_servidor(pares):
-    """
-    Segundos que el reloj del servidor va por delante de UTC, deducidos de la vela mas reciente.
+# El paso de la vela con la que se lee el reloj del servidor.
+PASO_M5 = 300
+# A partir de aqui la vela mas nueva es de otro dia: mercado cerrado, no terminal averiado.
+CERRADO = 3 * 3600
 
-    Se redondea a la media hora porque hay husos a :30 y porque la ultima vela puede llevar unos
-    segundos abierta. Suponer +3 a pelo funcionaria hoy y fallaria al cambiar el horario.
+
+def deducir_desfase(mejor, ahora):
+    """
+    Los segundos que el reloj del servidor va por delante de UTC, leidos de la vela mas nueva.
+
+    LA HORA DE UNA VELA ES LA DE SU APERTURA, y la mas nueva esta EN CURSO: su apertura cae entre
+    0 y 300 segundos antes del ahora del servidor. Tomarla tal cual sesga la cuenta hasta cinco
+    minutos, siempre hacia abajo, asi que se le suma medio paso y el error queda en +-150 s.
+
+    Se redondea a la media hora porque hay husos a :30. Suponer +3 a pelo funcionaria hoy y
+    fallaria al cambiar el horario.
+
+    ESTO SOLO ES CIERTO SI LA VELA ES LA DE AHORA, y esta funcion no tiene forma de saberlo: si
+    la vela llega media hora tarde, la cuenta sale limpia, redonda y desplazada un escalon. De
+    comprobarlo se encarga `desfase_servidor`, que tiene con que.
+    """
+    return int(round((mejor + PASO_M5 / 2.0 - ahora) / 1800.0) * 1800)
+
+
+def desfase_servidor(pares, anterior=None):
+    """
+    El desfase del servidor, contrastado con el de la vez pasada.
+
+    POR QUE NO BASTA CON DEDUCIRLO. Ya ha fallado dos veces, y las dos en silencio:
+
+        15 sep 01:15 UTC   la vela mas nueva llego ~30 min tarde. La cuenta cayo en el escalon
+                           de al lado y el fichero salio fechado media hora en el futuro:
+                           `div-ul-video` volvio a apuntar dos senales que ya tenia y guardo dos
+                           salidas 30 minutos tarde.
+        15 sep 22:25 UTC   el terminal, recien cambiado de cuenta, devolvio historial de 17,5 h
+                           antes. El fichero salio 20,5 h adelantado y siete registros apuntaron
+                           64 operaciones que ya tenian.
+
+    Y NO SE ARREGLA MIRANDO SOLO LA CUENTA. Se penso en exigir que cayera cerca de la media hora
+    exacta, pero un retraso de 30 minutos justos cae EN el escalon siguiente, a cero de distancia.
+    Un numero redondo no prueba nada.
+
+    Lo que si sirve es el desfase de la VEZ PASADA, que no depende de la vela de ahora:
+
+      1. Con el se mide la antiguedad de la vela sin usar lo que se acaba de deducir. Si son
+         horas, es el fin de semana, y ahi no hay reloj que leer: se conserva el de antes.
+      2. Si no lo son y el desfase deducido NO coincide con el de antes, se para. El desfase de
+         un broker cambia dos veces al año; que cambie hoy y justo en esta pasada es mucho menos
+         probable que un terminal sirviendo velas viejas. Se falla cerrado: mejor una pasada
+         perdida que un fichero mal fechado, que no falla, contamina.
+
+    Cuando el cambio de horario sea de verdad, esto para hasta que se mire. Es a proposito: el
+    fichero viejo sigue en su sitio, los grabadores lo ven rancio y no tocan nada. Para aceptar
+    el desfase nuevo se borra el fichero de salida y se deja que la primera pasada lo fije.
     """
     mejor = None
     for p in pares:
@@ -72,25 +121,36 @@ def desfase_servidor(pares):
                 mejor = t
     if mejor is None:
         return 0
-    desfase = int(round((mejor - time.time()) / 1800.0) * 1800)
-    # UN DESFASE IMPOSIBLE NO ES UN DESFASE: es que las velas venian rancias.
-    #
-    # Esto se deduce de la vela mas nueva, y da la respuesta correcta SOLO si esa vela es de
-    # ahora. El 15 sep el terminal acababa de cambiar de cuenta y devolvio historial viejo: la
-    # vela mas nueva era de 17,5 h antes, asi que aqui salio un desfase de -17,5 h.
-    #
-    # Y entonces todo el fichero quedo fechado 20 horas EN EL FUTURO. Peor todavia: la guarda de
-    # velas rancias resta este mismo desfase para calcular la antiguedad, asi que le salio
-    # NEGATIVA y dio las velas por frescas. Seis registros apuntaron una señal inventada.
-    #
-    # Ningun broker del mundo esta a mas de 14 horas de UTC. Fuera de ese margen no se adivina:
-    # se para, porque un fichero con fechas falsas contamina los registros en silencio.
-    if not (-12 * 3600 <= desfase <= 14 * 3600):
+    desfase = deducir_desfase(mejor, time.time())
+
+    if anterior is None:
+        # PRIMERA VEZ: no hay con que contrastar, asi que solo queda la unica cota que se
+        # sostiene sola. Ningun broker del mundo esta a mas de 14 horas de UTC.
+        if not (-12 * 3600 <= desfase <= 14 * 3600):
+            raise SystemExit(
+                f"el desfase deducido son {desfase / 3600:+.1f} h, que no existe en ningun "
+                "broker.\nSuele significar que el terminal devolvio velas viejas (recien "
+                "cambiado de cuenta,\no aun descargando historial). No se escribe nada: un "
+                "fichero mal fechado envenena\nlos registros sin que nada falle."
+            )
+        return desfase
+
+    # LA ANTIGUEDAD DE LA VELA, MEDIDA CON EL DESFASE DE ANTES y no con el de ahora. Es la unica
+    # forma de preguntar "¿esta vela es de ahora?" sin usar el numero que se quiere comprobar.
+    antiguedad = time.time() - (mejor - anterior)
+    if antiguedad > CERRADO:
+        print(f"la vela mas nueva tiene {antiguedad / 3600:.1f} h: mercado cerrado. De ahi no se "
+              f"lee ningun reloj, asi que se conserva el desfase de antes ({anterior / 3600:+.1f} h).")
+        return anterior
+    if desfase != anterior:
         raise SystemExit(
-            f"el desfase deducido son {desfase / 3600:+.1f} h, que no existe en ningun broker.\n"
-            "Suele significar que el terminal devolvio velas viejas (recien cambiado de cuenta,\n"
-            "o aun descargando historial). No se escribe nada: un fichero mal fechado envenena\n"
-            "los registros sin que nada falle."
+            f"el desfase deducido son {desfase / 3600:+.1f} h y el de la pasada anterior era "
+            f"{anterior / 3600:+.1f} h.\n"
+            f"La vela mas nueva tiene {antiguedad / 60:.1f} min, o sea que el mercado esta "
+            "abierto: lo mas probable\nno es que el broker haya cambiado de horario, sino que "
+            "el terminal esta sirviendo velas\nviejas. No se escribe nada.\n\n"
+            "Si el cambio de horario es de verdad, borra el fichero de salida y la primera "
+            "pasada\nfijara el desfase nuevo."
         )
     return desfase
 
@@ -191,7 +251,17 @@ def main():
         # Que un par se pida con un nombre y se lea con otro tiene que VERSE. Si algun dia el
         # resolutor acierta con el simbolo equivocado, esta linea es lo unico que lo delata.
         print(f"SIMBOLOS RENOMBRADOS: {', '.join(sorted(renombrados))}")
-    desfase = desfase_servidor(list(nombres.values()))
+    # EL DESFASE DE LA VEZ PASADA, del fichero que se va a sobrescribir. Solo se usa cuando la
+    # vela mas nueva no sirve para leer el reloj, que en la practica es el fin de semana.
+    anterior = None
+    try:
+        with io.open(args.salida, encoding="utf-8") as f:
+            v = json.load(f).get("desfase")
+        if isinstance(v, int) and -12 * 3600 <= v <= 14 * 3600:
+            anterior = v
+    except (OSError, ValueError):
+        pass
+    desfase = desfase_servidor(list(nombres.values()), anterior)
 
     datos = {}
     faltan = []

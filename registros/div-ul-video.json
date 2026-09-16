@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-14T05:48:58.357Z",
-  "ultima": "2026-09-16T00:45:10.219Z",
-  "pasadas": 196,
+  "ultima": "2026-09-16T00:55:10.466Z",
+  "pasadas": 198,
   "ajustes": {
     "modo": "video",
     "fuente": "MT5 #",
@@ -611,18 +611,18 @@
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1789519200,
-    "GBPUSD=X": 1789519200,
-    "USDJPY=X": 1789519200,
-    "USDCHF=X": 1789519200,
-    "AUDUSD=X": 1789519200,
-    "USDCAD=X": 1789519200,
-    "NZDUSD=X": 1789519200,
-    "EURJPY=X": 1789519200,
-    "EURGBP=X": 1789519200,
-    "GBPJPY=X": 1789519200,
-    "AUDJPY=X": 1789519200,
-    "CADJPY=X": 1789519200
+    "EURUSD=X": 1789519800,
+    "GBPUSD=X": 1789519800,
+    "USDJPY=X": 1789519800,
+    "USDCHF=X": 1789519800,
+    "AUDUSD=X": 1789519800,
+    "USDCAD=X": 1789519800,
+    "NZDUSD=X": 1789519800,
+    "EURJPY=X": 1789519800,
+    "EURGBP=X": 1789519800,
+    "GBPJPY=X": 1789519800,
+    "AUDJPY=X": 1789519800,
+    "CADJPY=X": 1789519800
   },
   "discrepancias": [
     "RETIRADA cerradas EURGBP=X LARGO tSeñal=2026-09-16T17:30Z r=+23.834. 15 sep 22:25 UTC: el exportador dedujo el desfase del servidor como -17,5 h porque el terminal, recien cambiado de cuenta, devolvio historial viejo. El fichero de velas quedo fechado 20 h en el futuro y la guarda de frescura no lo vio (la antiguedad le salia negativa). Las operaciones apuntadas con ese fichero se retiran: no son un resultado, son precios que no existian. Arreglado en velas.py (desfase imposible -> para) y velasFichero.ts (una vela del futuro cuenta como rancia).",

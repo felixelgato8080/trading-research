@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-14T05:48:54.239Z",
-  "ultima": "2026-09-16T00:45:06.578Z",
-  "pasadas": 196,
+  "ultima": "2026-09-16T00:55:06.793Z",
+  "pasadas": 198,
   "ajustes": {
     "modo": "afinado",
     "fuente": "MT5 #",
@@ -40,24 +40,7 @@
   "costeBps": 0.6,
   "vigencia": 60,
   "pendientes": [],
-  "abiertas": [
-    {
-      "par": "USDJPY=X",
-      "direccion": "LARGO",
-      "entrada": 155.176,
-      "stop": 155.07700000000003,
-      "objetivo": 155.32449999999994,
-      "rr": 1.5000000000001434,
-      "apuntada": "2026-09-16T00:25:06.849Z",
-      "tSeñal": 1789517700,
-      "caducaEn": 1789535700,
-      "velasDeRetraso": 1,
-      "abierta": "2026-09-16T00:25:06.849Z",
-      "tEntrada": 1789518000,
-      "entradaReal": 155.144,
-      "marca": 55.68514701818183
-    }
-  ],
+  "abiertas": [],
   "cerradas": [
     {
       "par": "AUDJPY=X",
@@ -249,48 +232,6 @@
       "motivo": "STOP"
     },
     {
-      "par": "EURJPY=X",
-      "direccion": "LARGO",
-      "entrada": 178.446,
-      "stop": 178.30800000000002,
-      "objetivo": 178.65299999999996,
-      "rr": 1.5,
-      "apuntada": "2026-09-15T00:50:06.515Z",
-      "tSeñal": 1789433100,
-      "caducaEn": 1789451100,
-      "velasDeRetraso": 0,
-      "abierta": "2026-09-15T01:15:07.911Z",
-      "tEntrada": 1789433400,
-      "entradaReal": 178.426,
-      "marca": 77.9624204531936,
-      "cerrada": "2026-09-15T22:25:07.289Z",
-      "tSalida": 1789433700,
-      "salida": 178.197,
-      "r": -1.73700550724656,
-      "motivo": "STOP"
-    },
-    {
-      "par": "EURJPY=X",
-      "direccion": "LARGO",
-      "entrada": 178.446,
-      "stop": 178.30800000000002,
-      "objetivo": 178.65299999999996,
-      "rr": 1.5,
-      "apuntada": "2026-09-15T01:15:07.911Z",
-      "tSeñal": 1789434900,
-      "caducaEn": 1789452900,
-      "velasDeRetraso": 5,
-      "abierta": "2026-09-15T01:15:07.911Z",
-      "tEntrada": 1789435200,
-      "entradaReal": 178.435,
-      "marca": 85.09667235897079,
-      "cerrada": "2026-09-15T22:25:07.289Z",
-      "tSalida": 1789435500,
-      "salida": 178.069,
-      "r": -2.7297591304353417,
-      "motivo": "STOP"
-    },
-    {
       "par": "AUDJPY=X",
       "direccion": "CORTO",
       "entrada": 110.575,
@@ -310,13 +251,34 @@
       "salida": 110.602,
       "r": -1.2457222222222128,
       "motivo": "STOP"
+    },
+    {
+      "par": "USDJPY=X",
+      "direccion": "LARGO",
+      "entrada": 155.176,
+      "stop": 155.07700000000003,
+      "objetivo": 155.32449999999994,
+      "rr": 1.5000000000001434,
+      "apuntada": "2026-09-16T00:25:06.849Z",
+      "tSeñal": 1789517700,
+      "caducaEn": 1789535700,
+      "velasDeRetraso": 1,
+      "abierta": "2026-09-16T00:25:06.849Z",
+      "tEntrada": 1789518000,
+      "entradaReal": 155.144,
+      "marca": 55.68514701818183,
+      "cerrada": "2026-09-16T00:50:06.731Z",
+      "tSalida": 1789519500,
+      "salida": 155.32449999999994,
+      "r": 1.729186262626317,
+      "motivo": "OBJETIVO"
     }
   ],
   "vistoHasta": {
-    "USDJPY=X": 1789519200,
-    "GBPJPY=X": 1789519200,
-    "EURJPY=X": 1789519200,
-    "AUDJPY=X": 1789519200
+    "USDJPY=X": 1789519800,
+    "GBPJPY=X": 1789519800,
+    "EURJPY=X": 1789519800,
+    "AUDJPY=X": 1789519800
   },
   "discrepancias": [
     "RETIRADA cerradas GBPJPY=X CORTO tSeñal=2026-09-16T18:10Z r=+1.239. 15 sep 22:25 UTC: el exportador dedujo el desfase del servidor como -17,5 h porque el terminal, recien cambiado de cuenta, devolvio historial viejo. El fichero de velas quedo fechado 20 h en el futuro y la guarda de frescura no lo vio (la antiguedad le salia negativa). Las operaciones apuntadas con ese fichero se retiran: no son un resultado, son precios que no existian. Arreglado en velas.py (desfase imposible -> para) y velasFichero.ts (una vela del futuro cuenta como rancia).",
@@ -333,6 +295,8 @@
     "RETIRADA cerradas AUDJPY=X LARGO tSeñal=1789450800 r=-0.264. RETIRADA por la pasada del 2026-09-15T22:25 UTC. El exportador dedujo el desfase del servidor como -17,5 h (el terminal, recien cambiado de cuenta, devolvio historial viejo) y escribio el fichero de velas con las fechas corridas +20,5 h. Los grabadores lo leyeron una vez y volvieron a apuntar historia ya apuntada como si fuera nueva. Arreglado en velas.py (un desfase imposible para el exportador) y en velasFichero.ts (una vela fechada en el futuro cuenta como rancia, antes daba antiguedad 0 y pasaba por fresca).",
     "RETIRADA cerradas AUDJPY=X CORTO tSeñal=1789469700 r=-0.717. RETIRADA por la pasada del 2026-09-15T22:25 UTC. El exportador dedujo el desfase del servidor como -17,5 h (el terminal, recien cambiado de cuenta, devolvio historial viejo) y escribio el fichero de velas con las fechas corridas +20,5 h. Los grabadores lo leyeron una vez y volvieron a apuntar historia ya apuntada como si fuera nueva. Arreglado en velas.py (un desfase imposible para el exportador) y en velasFichero.ts (una vela fechada en el futuro cuenta como rancia, antes daba antiguedad 0 y pasaba por fresca).",
     "RETIRADA cerradas AUDJPY=X CORTO tSeñal=1789471500 r=-0.388. RETIRADA por la pasada del 2026-09-15T22:25 UTC. El exportador dedujo el desfase del servidor como -17,5 h (el terminal, recien cambiado de cuenta, devolvio historial viejo) y escribio el fichero de velas con las fechas corridas +20,5 h. Los grabadores lo leyeron una vez y volvieron a apuntar historia ya apuntada como si fuera nueva. Arreglado en velas.py (un desfase imposible para el exportador) y en velasFichero.ts (una vela fechada en el futuro cuenta como rancia, antes daba antiguedad 0 y pasaba por fresca).",
-    "RETIRADA cerradas AUDJPY=X CORTO tSeñal=1789494600 r=-1.315. RETIRADA por la pasada del 2026-09-15T22:25 UTC. El exportador dedujo el desfase del servidor como -17,5 h (el terminal, recien cambiado de cuenta, devolvio historial viejo) y escribio el fichero de velas con las fechas corridas +20,5 h. Los grabadores lo leyeron una vez y volvieron a apuntar historia ya apuntada como si fuera nueva. Arreglado en velas.py (un desfase imposible para el exportador) y en velasFichero.ts (una vela fechada en el futuro cuenta como rancia, antes daba antiguedad 0 y pasaba por fresca)."
+    "RETIRADA cerradas AUDJPY=X CORTO tSeñal=1789494600 r=-1.315. RETIRADA por la pasada del 2026-09-15T22:25 UTC. El exportador dedujo el desfase del servidor como -17,5 h (el terminal, recien cambiado de cuenta, devolvio historial viejo) y escribio el fichero de velas con las fechas corridas +20,5 h. Los grabadores lo leyeron una vez y volvieron a apuntar historia ya apuntada como si fuera nueva. Arreglado en velas.py (un desfase imposible para el exportador) y en velasFichero.ts (una vela fechada en el futuro cuenta como rancia, antes daba antiguedad 0 y pasaba por fresca).",
+    "RETIRADA cerradas EURJPY=X LARGO tSeñal=1789433100 r=-1.737. RETIRADA: se abrio bien pero la CERRO la pasada del 2026-09-15T22:25 UTC, que leyo el fichero de velas con las fechas corridas +20,5 h. El bucle de salida recorrio esa serie, asi que la vela y el precio de salida son de otro momento. La señal era real; la salida no, y la R sale de la salida.",
+    "RETIRADA cerradas EURJPY=X LARGO tSeñal=1789434900 r=-2.730. RETIRADA: se abrio bien pero la CERRO la pasada del 2026-09-15T22:25 UTC, que leyo el fichero de velas con las fechas corridas +20,5 h. El bucle de salida recorrio esa serie, asi que la vela y el precio de salida son de otro momento. La señal era real; la salida no, y la R sale de la salida."
   ]
 }
