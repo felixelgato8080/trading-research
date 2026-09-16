@@ -1,1 +1,54 @@
-{"version": 2, "nombre": "divergencia", "inicio": "2026-09-14T05:48:55.688Z", "ultima": "2026-09-15T22:45:07.921Z", "pasadas": 173, "ajustes": {"modo": "afinado", "fuente": "MT5 #", "div": {"periodoRsi": 14, "confirmacion": 2, "umbralAlto": 70, "minSeparacion": 3, "maxSeparacion": 40, "exigirFueraDelCanal": true}, "ent": {"zona": {"minHueco": 0.2, "minEmpuje": 1, "vigencia": 60, "esperaBloque": 20, "colchon": 2, "objetivoR": 2, "radioLiquidez": 0.5, "toquesLiquidez": 3, "memoriaHuecos": 50}, "esperaZona": 40, "esperaEntrada": 60, "colchon": 2, "stop": "ZONA", "objetivo": "FIJO", "objetivoR": 1.5, "rrMinimo": 0, "minRiesgoAtr": 0.5}}, "costeBps": 0.6, "vigencia": 60, "pendientes": [], "abiertas": [], "cerradas": [], "vistoHasta": {"USDJPY=X": 1789512000, "GBPJPY=X": 1789512000, "EURJPY=X": 1789512000, "AUDJPY=X": 1789512000}, "discrepancias": ["RETIRADA cerradas GBPJPY=X CORTO tSe\u00f1al=2026-09-16T18:10Z r=+1.239. 15 sep 22:25 UTC: el exportador dedujo el desfase del servidor como -17,5 h porque el terminal, recien cambiado de cuenta, devolvio historial viejo. El fichero de velas quedo fechado 20 h en el futuro y la guarda de frescura no lo vio (la antiguedad le salia negativa). Las operaciones apuntadas con ese fichero se retiran: no son un resultado, son precios que no existian. Arreglado en velas.py (desfase imposible -> para) y velasFichero.ts (una vela del futuro cuenta como rancia)."]}
+{
+  "version": 2,
+  "nombre": "divergencia",
+  "inicio": "2026-09-14T05:48:55.688Z",
+  "ultima": "2026-09-16T00:45:07.791Z",
+  "pasadas": 196,
+  "ajustes": {
+    "modo": "afinado",
+    "fuente": "MT5 #",
+    "div": {
+      "periodoRsi": 14,
+      "confirmacion": 2,
+      "umbralAlto": 70,
+      "minSeparacion": 3,
+      "maxSeparacion": 40,
+      "exigirFueraDelCanal": true
+    },
+    "ent": {
+      "zona": {
+        "minHueco": 0.2,
+        "minEmpuje": 1,
+        "vigencia": 60,
+        "esperaBloque": 20,
+        "colchon": 2,
+        "objetivoR": 2,
+        "radioLiquidez": 0.5,
+        "toquesLiquidez": 3,
+        "memoriaHuecos": 50
+      },
+      "esperaZona": 40,
+      "esperaEntrada": 60,
+      "colchon": 2,
+      "stop": "ZONA",
+      "objetivo": "FIJO",
+      "objetivoR": 1.5,
+      "rrMinimo": 0,
+      "minRiesgoAtr": 0.5
+    }
+  },
+  "costeBps": 0.6,
+  "vigencia": 60,
+  "pendientes": [],
+  "abiertas": [],
+  "cerradas": [],
+  "vistoHasta": {
+    "USDJPY=X": 1789519200,
+    "GBPJPY=X": 1789519200,
+    "EURJPY=X": 1789519200,
+    "AUDJPY=X": 1789519200
+  },
+  "discrepancias": [
+    "RETIRADA cerradas GBPJPY=X CORTO tSeñal=2026-09-16T18:10Z r=+1.239. 15 sep 22:25 UTC: el exportador dedujo el desfase del servidor como -17,5 h porque el terminal, recien cambiado de cuenta, devolvio historial viejo. El fichero de velas quedo fechado 20 h en el futuro y la guarda de frescura no lo vio (la antiguedad le salia negativa). Las operaciones apuntadas con ese fichero se retiran: no son un resultado, son precios que no existian. Arreglado en velas.py (desfase imposible -> para) y velasFichero.ts (una vela del futuro cuenta como rancia)."
+  ]
+}

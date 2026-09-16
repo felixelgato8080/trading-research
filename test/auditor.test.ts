@@ -226,6 +226,32 @@ test("un instrumento sin velas se audita igual, avisando", () => {
 });
 
 // ------------------------------------------------------------------------------------------
+// POR QUE EL AUDITOR NO CAZA OPERACIONES REPETIDAS
+//
+// El 15 sep el fichero de velas salio con las fechas corridas +20,5 h y los grabadores volvieron
+// a apuntar historia ya apuntada: 64 operaciones repetidas en siete registros. La tentacion
+// obvia es anadir aqui una regla de "esta operacion ya estaba". SE PROBO Y ESTA MAL.
+//
+// En las estrategias de NIVEL -`video` entra con una limitada en un nivel de liquidez y el stop
+// es un precio fijo- que el precio vuelva al mismo sitio produce una operacion identica EN TODO:
+// mismo llenado, misma salida, misma R. Medido en div-ul-video, USDCAD el 15 sep a las 00:20 y a
+// las 00:50 son dos operaciones reales con los mismos siete numeros. Una regla por contenido las
+// habria marcado como falsas.
+//
+// El fallo se para donde se origina y por una invariante que si es cierta: un fichero de velas
+// corrido una constante deja su ultima vela lejos de AHORA -hacia adelante o hacia atras- y
+// `leerVelas` lo da por rancio, asi que el grabador no toca el registro. Eso se prueba en
+// velasFichero.test.ts; aqui solo se fija que el auditor NO invente una alarma.
+// ------------------------------------------------------------------------------------------
+
+test("DOS OPERACIONES IDENTICAS NO SON UNA ANOMALIA: en las de nivel, pasa de verdad", () => {
+  const otra = { ...SANA, tSeñal: 10 * H, tEntrada: 11 * H, tSalida: 13 * H };
+  const velas = [...VELAS, ...VELAS.map((x) => ({ ...x, t: x.t + 10 * H }))];
+  const a = auditar([SANA, otra], () => velas);
+  assert.deepEqual(a.anomalias, []);
+});
+
+// ------------------------------------------------------------------------------------------
 // LOS ADAPTADORES
 // ------------------------------------------------------------------------------------------
 

@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "pullback",
   "inicio": "2026-09-14T05:49:02.012Z",
-  "ultima": "2026-09-15T22:45:13.679Z",
-  "pasadas": 173,
+  "ultima": "2026-09-16T00:45:13.693Z",
+  "pasadas": 196,
   "ajustes": {
     "version": "V2(adxSubiendoDesde=0)",
     "fuente": "MT5 #",
@@ -79,59 +79,18 @@
       "salida": 0.712556286464108,
       "r": 1.2610845869426734,
       "motivo": "OBJETIVO"
-    },
-    {
-      "par": "AUDUSD=X",
-      "direccion": "CORTO",
-      "entrada": 0.71292,
-      "stop": 0.713122616230743,
-      "objetivo": 0.712514767538514,
-      "rr": 2,
-      "apuntada": "2026-09-15T22:25:14.286Z",
-      "tSeñal": 1789455600,
-      "caducaEn": 1789455900,
-      "tipo": "MERCADO",
-      "velasDeRetraso": 429,
-      "abierta": "2026-09-15T22:25:14.286Z",
-      "tEntrada": 1789455900,
-      "entradaReal": 0.71293,
-      "marca": 42.70500110208032,
-      "cerrada": "2026-09-15T22:30:12.330Z",
-      "tSalida": 1789462200,
-      "salida": 0.712514767538514,
-      "r": 1.380825516593692,
-      "motivo": "OBJETIVO"
-    },
-    {
-      "par": "AUDUSD=X",
-      "direccion": "CORTO",
-      "entrada": 0.71295,
-      "stop": 0.713146856767946,
-      "objetivo": 0.712556286464108,
-      "rr": 2,
-      "apuntada": "2026-09-15T22:25:14.286Z",
-      "tSeñal": 1789460100,
-      "caducaEn": 1789460400,
-      "tipo": "MERCADO",
-      "velasDeRetraso": 414,
-      "abierta": "2026-09-15T22:25:14.286Z",
-      "tEntrada": 1789460400,
-      "entradaReal": 0.71294,
-      "marca": 34.66630000073902,
-      "cerrada": "2026-09-15T22:30:12.330Z",
-      "tSalida": 1789462200,
-      "salida": 0.712556286464108,
-      "r": 1.2610845869426734,
-      "motivo": "OBJETIVO"
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1789512000,
-    "GBPUSD=X": 1789512000,
-    "USDJPY=X": 1789512000,
-    "EURJPY=X": 1789512000,
-    "GBPJPY=X": 1789512000,
-    "AUDUSD=X": 1789511700
+    "EURUSD=X": 1789519200,
+    "GBPUSD=X": 1789519200,
+    "USDJPY=X": 1789519200,
+    "EURJPY=X": 1789519200,
+    "GBPJPY=X": 1789519200,
+    "AUDUSD=X": 1789519200
   },
-  "discrepancias": []
+  "discrepancias": [
+    "RETIRADA cerradas AUDUSD=X CORTO tSeñal=1789455600 r=+1.381. RETIRADA por la pasada del 2026-09-15T22:25 UTC. El exportador dedujo el desfase del servidor como -17,5 h (el terminal, recien cambiado de cuenta, devolvio historial viejo) y escribio el fichero de velas con las fechas corridas +20,5 h. Los grabadores lo leyeron una vez y volvieron a apuntar historia ya apuntada como si fuera nueva. Arreglado en velas.py (un desfase imposible para el exportador) y en velasFichero.ts (una vela fechada en el futuro cuenta como rancia, antes daba antiguedad 0 y pasaba por fresca).",
+    "RETIRADA cerradas AUDUSD=X CORTO tSeñal=1789460100 r=+1.261. RETIRADA por la pasada del 2026-09-15T22:25 UTC. El exportador dedujo el desfase del servidor como -17,5 h (el terminal, recien cambiado de cuenta, devolvio historial viejo) y escribio el fichero de velas con las fechas corridas +20,5 h. Los grabadores lo leyeron una vez y volvieron a apuntar historia ya apuntada como si fuera nueva. Arreglado en velas.py (un desfase imposible para el exportador) y en velasFichero.ts (una vela fechada en el futuro cuenta como rancia, antes daba antiguedad 0 y pasaba por fresca)."
+  ]
 }
