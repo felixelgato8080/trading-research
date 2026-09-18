@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "smc",
   "inicio": "2026-09-08T01:08:33.729Z",
-  "ultima": "2026-09-18T04:32:27.286Z",
-  "pasadas": 44,
+  "ultima": "2026-09-18T11:04:50.550Z",
+  "pasadas": 45,
   "ajustes": {
     "minHueco": 0.2,
     "minEmpuje": 2.5,
@@ -17,7 +17,20 @@
   },
   "costeBps": 1,
   "vigencia": 60,
-  "pendientes": [],
+  "pendientes": [
+    {
+      "par": "GBPJPY=X",
+      "direccion": "LARGO",
+      "entrada": 209.5279998779297,
+      "stop": 208.09849548339844,
+      "objetivo": 213.81651306152344,
+      "rr": 3,
+      "apuntada": "2026-09-18T11:04:50.550Z",
+      "tSeñal": 1789711200,
+      "caducaEn": 1789927200,
+      "velasDeRetraso": 5
+    }
+  ],
   "abiertas": [
     {
       "par": "AUDUSD=X",
@@ -33,6 +46,21 @@
       "abierta": "2026-09-18T04:32:27.286Z",
       "tEntrada": 1789704000,
       "entradaReal": 0.7137249112129211
+    },
+    {
+      "par": "GBPCAD=X",
+      "direccion": "CORTO",
+      "entrada": 1.8710500001907349,
+      "stop": 1.8740950226783752,
+      "objetivo": 1.8619149327278137,
+      "rr": 3,
+      "apuntada": "2026-09-18T11:04:50.550Z",
+      "tSeñal": 1789711200,
+      "caducaEn": 1789927200,
+      "velasDeRetraso": 5,
+      "abierta": "2026-09-18T11:04:50.550Z",
+      "tEntrada": 1789714800,
+      "entradaReal": 1.8710500001907349
     }
   ],
   "cerradas": [
@@ -118,32 +146,32 @@
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1789704000,
-    "GBPUSD=X": 1789704000,
-    "USDJPY=X": 1789704000,
-    "USDCHF=X": 1789704000,
-    "AUDUSD=X": 1789704000,
-    "USDCAD=X": 1789704000,
-    "NZDUSD=X": 1789704000,
-    "EURJPY=X": 1789704000,
-    "EURGBP=X": 1789704000,
-    "EURCHF=X": 1789704000,
-    "EURAUD=X": 1789704000,
-    "EURCAD=X": 1789704000,
-    "GBPJPY=X": 1789704000,
-    "GBPCHF=X": 1789704000,
-    "GBPAUD=X": 1789704000,
-    "GBPCAD=X": 1789704000,
-    "AUDJPY=X": 1789704000,
-    "AUDNZD=X": 1789704000,
-    "AUDCAD=X": 1789704000,
-    "AUDCHF=X": 1789704000,
-    "CADJPY=X": 1789704000,
-    "CADCHF=X": 1789704000,
-    "CHFJPY=X": 1789704000,
-    "NZDJPY=X": 1789704000,
-    "NZDCAD=X": 1789704000,
-    "NZDCHF=X": 1789704000
+    "EURUSD=X": 1789729200,
+    "GBPUSD=X": 1789729200,
+    "USDJPY=X": 1789729200,
+    "USDCHF=X": 1789729200,
+    "AUDUSD=X": 1789729200,
+    "USDCAD=X": 1789729200,
+    "NZDUSD=X": 1789729200,
+    "EURJPY=X": 1789729200,
+    "EURGBP=X": 1789729200,
+    "EURCHF=X": 1789729200,
+    "EURAUD=X": 1789729200,
+    "EURCAD=X": 1789729200,
+    "GBPJPY=X": 1789729200,
+    "GBPCHF=X": 1789729200,
+    "GBPAUD=X": 1789729200,
+    "GBPCAD=X": 1789729200,
+    "AUDJPY=X": 1789729200,
+    "AUDNZD=X": 1789729200,
+    "AUDCAD=X": 1789729200,
+    "AUDCHF=X": 1789729200,
+    "CADJPY=X": 1789729200,
+    "CADCHF=X": 1789729200,
+    "CHFJPY=X": 1789729200,
+    "NZDJPY=X": 1789729200,
+    "NZDCAD=X": 1789729200,
+    "NZDCHF=X": 1789729200
   },
   "discrepancias": []
 }
