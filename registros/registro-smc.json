@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "smc",
   "inicio": "2026-09-08T01:08:33.729Z",
-  "ultima": "2026-09-19T04:29:17.999Z",
-  "pasadas": 49,
+  "ultima": "2026-09-19T10:49:33.531Z",
+  "pasadas": 50,
   "ajustes": {
     "minHueco": 0.2,
     "minEmpuje": 2.5,
