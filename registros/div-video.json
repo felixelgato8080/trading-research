@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-08T01:08:52.791Z",
-  "ultima": "2026-09-20T03:01:59.279Z",
-  "pasadas": 831,
+  "ultima": "2026-09-20T03:24:35.097Z",
+  "pasadas": 832,
   "ajustes": {
     "modo": "video",
     "div": {
@@ -1939,9 +1939,9 @@
     "GBPUSD=X": 1789766400,
     "USDJPY=X": 1789765200,
     "USDCHF=X": 1789764600,
-    "AUDUSD=X": 1789766700,
-    "USDCAD=X": 1789768200,
-    "NZDUSD=X": 1789766700,
+    "AUDUSD=X": 1789766400,
+    "USDCAD=X": 1789765200,
+    "NZDUSD=X": 1789766400,
     "EURJPY=X": 1789766700,
     "EURGBP=X": 1789766400,
     "GBPJPY=X": 1789766700,
