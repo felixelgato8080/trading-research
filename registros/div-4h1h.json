@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-08T01:09:08.916Z",
-  "ultima": "2026-09-22T11:27:27.958Z",
-  "pasadas": 64,
+  "ultima": "2026-09-22T16:49:59.790Z",
+  "pasadas": 65,
   "ajustes": {
     "modo": "4h1h",
     "div": {
@@ -52,24 +52,7 @@
       "velasDeRetraso": 3
     }
   ],
-  "abiertas": [
-    {
-      "par": "EURUSD=X",
-      "direccion": "LARGO",
-      "entrada": 1.147446870803833,
-      "stop": 1.1465785264968873,
-      "objetivo": 1.1559356451034546,
-      "rr": 9.775816150024339,
-      "apuntada": "2026-09-22T11:27:27.958Z",
-      "tSeñal": 1790053200,
-      "caducaEn": 1790269200,
-      "velasDeRetraso": 6,
-      "abierta": "2026-09-22T11:27:27.958Z",
-      "tEntrada": 1790056800,
-      "entradaReal": 1.147446870803833,
-      "marca": 41.5660045913543
-    }
-  ],
+  "abiertas": [],
   "cerradas": [
     {
       "par": "GBPUSD=X",
@@ -525,21 +508,42 @@
       "salida": 0.5716833770275116,
       "r": -1.079507136053013,
       "motivo": "STOP"
+    },
+    {
+      "par": "EURUSD=X",
+      "direccion": "LARGO",
+      "entrada": 1.147446870803833,
+      "stop": 1.1465785264968873,
+      "objetivo": 1.1559356451034546,
+      "rr": 9.775816150024339,
+      "apuntada": "2026-09-22T11:27:27.958Z",
+      "tSeñal": 1790053200,
+      "caducaEn": 1790269200,
+      "velasDeRetraso": 6,
+      "abierta": "2026-09-22T11:27:27.958Z",
+      "tEntrada": 1790056800,
+      "entradaReal": 1.147446870803833,
+      "marca": 41.5660045913543,
+      "cerrada": "2026-09-22T16:49:59.790Z",
+      "tSalida": 1790060400,
+      "salida": 1.1465785264968873,
+      "r": -1.079285154169306,
+      "motivo": "STOP"
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1790074800,
-    "GBPUSD=X": 1790074800,
-    "USDJPY=X": 1790074800,
-    "USDCHF=X": 1790074800,
-    "AUDUSD=X": 1790074800,
-    "USDCAD=X": 1790074800,
-    "NZDUSD=X": 1790074800,
-    "EURJPY=X": 1790074800,
-    "EURGBP=X": 1790074800,
-    "GBPJPY=X": 1790074800,
-    "AUDJPY=X": 1790074800,
-    "CADJPY=X": 1790074800
+    "EURUSD=X": 1790092800,
+    "GBPUSD=X": 1790092800,
+    "USDJPY=X": 1790092800,
+    "USDCHF=X": 1790092800,
+    "AUDUSD=X": 1790092800,
+    "USDCAD=X": 1790092800,
+    "NZDUSD=X": 1790092800,
+    "EURJPY=X": 1790092800,
+    "EURGBP=X": 1790092800,
+    "GBPJPY=X": 1790092800,
+    "AUDJPY=X": 1790092800,
+    "CADJPY=X": 1790092800
   },
   "discrepancias": []
 }
