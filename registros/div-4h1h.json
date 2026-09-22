@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-08T01:09:08.916Z",
-  "ultima": "2026-09-22T04:45:55.917Z",
-  "pasadas": 63,
+  "ultima": "2026-09-22T11:27:27.958Z",
+  "pasadas": 64,
   "ajustes": {
     "modo": "4h1h",
     "div": {
@@ -38,8 +38,38 @@
   },
   "costeBps": 0.6,
   "vigencia": 60,
-  "pendientes": [],
-  "abiertas": [],
+  "pendientes": [
+    {
+      "par": "CADJPY=X",
+      "direccion": "LARGO",
+      "entrada": 111.75700378417969,
+      "stop": 111.61509780883789,
+      "objetivo": 112.48300170898438,
+      "rr": 5.116049011016086,
+      "apuntada": "2026-09-22T11:27:27.958Z",
+      "tSeñal": 1790064000,
+      "caducaEn": 1790280000,
+      "velasDeRetraso": 3
+    }
+  ],
+  "abiertas": [
+    {
+      "par": "EURUSD=X",
+      "direccion": "LARGO",
+      "entrada": 1.147446870803833,
+      "stop": 1.1465785264968873,
+      "objetivo": 1.1559356451034546,
+      "rr": 9.775816150024339,
+      "apuntada": "2026-09-22T11:27:27.958Z",
+      "tSeñal": 1790053200,
+      "caducaEn": 1790269200,
+      "velasDeRetraso": 6,
+      "abierta": "2026-09-22T11:27:27.958Z",
+      "tEntrada": 1790056800,
+      "entradaReal": 1.147446870803833,
+      "marca": 41.5660045913543
+    }
+  ],
   "cerradas": [
     {
       "par": "GBPUSD=X",
@@ -498,18 +528,18 @@
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1790049600,
-    "GBPUSD=X": 1790049600,
-    "USDJPY=X": 1790049600,
-    "USDCHF=X": 1790049600,
-    "AUDUSD=X": 1790049600,
-    "USDCAD=X": 1790049600,
-    "NZDUSD=X": 1790049600,
-    "EURJPY=X": 1790049600,
-    "EURGBP=X": 1790049600,
-    "GBPJPY=X": 1790049600,
-    "AUDJPY=X": 1790049600,
-    "CADJPY=X": 1790049600
+    "EURUSD=X": 1790074800,
+    "GBPUSD=X": 1790074800,
+    "USDJPY=X": 1790074800,
+    "USDCHF=X": 1790074800,
+    "AUDUSD=X": 1790074800,
+    "USDCAD=X": 1790074800,
+    "NZDUSD=X": 1790074800,
+    "EURJPY=X": 1790074800,
+    "EURGBP=X": 1790074800,
+    "GBPJPY=X": 1790074800,
+    "AUDJPY=X": 1790074800,
+    "CADJPY=X": 1790074800
   },
   "discrepancias": []
 }
