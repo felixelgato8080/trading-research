@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-08T01:09:08.916Z",
-  "ultima": "2026-09-25T11:43:11.738Z",
-  "pasadas": 76,
+  "ultima": "2026-09-25T17:04:12.682Z",
+  "pasadas": 77,
   "ajustes": {
     "modo": "4h1h",
     "div": {
@@ -38,8 +38,38 @@
   },
   "costeBps": 0.6,
   "vigencia": 60,
-  "pendientes": [],
-  "abiertas": [],
+  "pendientes": [
+    {
+      "par": "NZDUSD=X",
+      "direccion": "LARGO",
+      "entrada": 0.56573885679245,
+      "stop": 0.565246331691742,
+      "objetivo": 0.5763024091720581,
+      "rr": 21.447744215318036,
+      "apuntada": "2026-09-25T17:04:12.682Z",
+      "tSeñal": 1790348400,
+      "caducaEn": 1790564400,
+      "velasDeRetraso": 2
+    }
+  ],
+  "abiertas": [
+    {
+      "par": "USDCHF=X",
+      "direccion": "CORTO",
+      "entrada": 0.8289200067520142,
+      "stop": 0.8296900033950806,
+      "objetivo": 0.8183000087738037,
+      "rr": 13.792265296011493,
+      "apuntada": "2026-09-25T17:04:12.682Z",
+      "tSeñal": 1790341200,
+      "caducaEn": 1790557200,
+      "velasDeRetraso": 4,
+      "abierta": "2026-09-25T17:04:12.682Z",
+      "tEntrada": 1790344800,
+      "entradaReal": 0.8289200067520142,
+      "marca": 64.9219267904576
+    }
+  ],
   "cerradas": [
     {
       "par": "GBPUSD=X",
@@ -540,18 +570,18 @@
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1790334000,
-    "GBPUSD=X": 1790334000,
-    "USDJPY=X": 1790334000,
-    "USDCHF=X": 1790334000,
-    "AUDUSD=X": 1790334000,
-    "USDCAD=X": 1790334000,
-    "NZDUSD=X": 1790334000,
-    "EURJPY=X": 1790334000,
-    "EURGBP=X": 1790334000,
-    "GBPJPY=X": 1790334000,
-    "AUDJPY=X": 1790334000,
-    "CADJPY=X": 1790334000
+    "EURUSD=X": 1790355600,
+    "GBPUSD=X": 1790355600,
+    "USDJPY=X": 1790355600,
+    "USDCHF=X": 1790355600,
+    "AUDUSD=X": 1790355600,
+    "USDCAD=X": 1790355600,
+    "NZDUSD=X": 1790355600,
+    "EURJPY=X": 1790355600,
+    "EURGBP=X": 1790355600,
+    "GBPJPY=X": 1790355600,
+    "AUDJPY=X": 1790355600,
+    "CADJPY=X": 1790355600
   },
   "discrepancias": []
 }
