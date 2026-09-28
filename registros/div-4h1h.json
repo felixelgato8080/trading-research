@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-08T01:09:08.916Z",
-  "ultima": "2026-09-27T21:16:41.571Z",
-  "pasadas": 87,
+  "ultima": "2026-09-28T05:13:27.534Z",
+  "pasadas": 88,
   "ajustes": {
     "modo": "4h1h",
     "div": {
@@ -38,7 +38,8 @@
   },
   "costeBps": 0.6,
   "vigencia": 60,
-  "pendientes": [
+  "pendientes": [],
+  "abiertas": [
     {
       "par": "NZDUSD=X",
       "direccion": "LARGO",
@@ -49,25 +50,11 @@
       "apuntada": "2026-09-25T17:04:12.682Z",
       "tSeñal": 1790348400,
       "caducaEn": 1790564400,
-      "velasDeRetraso": 2
-    }
-  ],
-  "abiertas": [
-    {
-      "par": "USDCHF=X",
-      "direccion": "CORTO",
-      "entrada": 0.8289200067520142,
-      "stop": 0.8296900033950806,
-      "objetivo": 0.8183000087738037,
-      "rr": 13.792265296011493,
-      "apuntada": "2026-09-25T17:04:12.682Z",
-      "tSeñal": 1790341200,
-      "caducaEn": 1790557200,
-      "velasDeRetraso": 4,
-      "abierta": "2026-09-25T17:04:12.682Z",
-      "tEntrada": 1790344800,
-      "entradaReal": 0.8289200067520142,
-      "marca": 64.9219267904576
+      "velasDeRetraso": 2,
+      "abierta": "2026-09-28T05:13:27.534Z",
+      "tEntrada": 1790550000,
+      "entradaReal": 0.5653230547904968,
+      "marca": 36.6451186133388
     }
   ],
   "cerradas": [
@@ -567,21 +554,42 @@
       "salida": 0.5694984436035156,
       "r": -1.0222691499500247,
       "motivo": "STOP"
+    },
+    {
+      "par": "USDCHF=X",
+      "direccion": "CORTO",
+      "entrada": 0.8289200067520142,
+      "stop": 0.8296900033950806,
+      "objetivo": 0.8183000087738037,
+      "rr": 13.792265296011493,
+      "apuntada": "2026-09-25T17:04:12.682Z",
+      "tSeñal": 1790341200,
+      "caducaEn": 1790557200,
+      "velasDeRetraso": 4,
+      "abierta": "2026-09-25T17:04:12.682Z",
+      "tEntrada": 1790344800,
+      "entradaReal": 0.8289200067520142,
+      "marca": 64.9219267904576,
+      "cerrada": "2026-09-28T05:13:27.534Z",
+      "tSalida": 1790550000,
+      "salida": 0.8296900033950806,
+      "r": -1.0645914509536767,
+      "motivo": "STOP"
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1790366400,
-    "GBPUSD=X": 1790366400,
-    "USDJPY=X": 1790366400,
-    "USDCHF=X": 1790362800,
-    "AUDUSD=X": 1790366400,
-    "USDCAD=X": 1790366400,
-    "NZDUSD=X": 1790366400,
-    "EURJPY=X": 1790366400,
-    "EURGBP=X": 1790366400,
-    "GBPJPY=X": 1790366400,
-    "AUDJPY=X": 1790366400,
-    "CADJPY=X": 1790366400
+    "EURUSD=X": 1790571600,
+    "GBPUSD=X": 1790571600,
+    "USDJPY=X": 1790571600,
+    "USDCHF=X": 1790571600,
+    "AUDUSD=X": 1790571600,
+    "USDCAD=X": 1790571600,
+    "NZDUSD=X": 1790571600,
+    "EURJPY=X": 1790571600,
+    "EURGBP=X": 1790571600,
+    "GBPJPY=X": 1790571600,
+    "AUDJPY=X": 1790571600,
+    "CADJPY=X": 1790571600
   },
   "discrepancias": []
 }
