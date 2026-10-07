@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "divergencia",
   "inicio": "2026-09-08T01:09:08.916Z",
-  "ultima": "2026-10-06T22:36:35.397Z",
-  "pasadas": 118,
+  "ultima": "2026-10-07T05:45:58.327Z",
+  "pasadas": 119,
   "ajustes": {
     "modo": "4h1h",
     "div": {
@@ -96,6 +96,22 @@
       "tEntrada": 1791270000,
       "entradaReal": 1.1212018728256226,
       "marca": 38.79004482252037
+    },
+    {
+      "par": "NZDUSD=X",
+      "direccion": "LARGO",
+      "entrada": 0.5610727667808533,
+      "stop": 0.5604500949382782,
+      "objetivo": 0.5687958598136902,
+      "rr": 12.403151234361975,
+      "apuntada": "2026-10-07T05:45:58.327Z",
+      "tSeñal": 1791338400,
+      "caducaEn": 1791554400,
+      "velasDeRetraso": 3,
+      "abierta": "2026-10-07T05:45:58.327Z",
+      "tEntrada": 1791342000,
+      "entradaReal": 0.5610727667808533,
+      "marca": 53.57150517322974
     }
   ],
   "cerradas": [
@@ -892,18 +908,18 @@
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1791324000,
-    "GBPUSD=X": 1791324000,
-    "USDJPY=X": 1791324000,
-    "USDCHF=X": 1791324000,
-    "AUDUSD=X": 1791324000,
-    "USDCAD=X": 1791324000,
-    "NZDUSD=X": 1791324000,
-    "EURJPY=X": 1791324000,
-    "EURGBP=X": 1791324000,
-    "GBPJPY=X": 1791324000,
-    "AUDJPY=X": 1791324000,
-    "CADJPY=X": 1791324000
+    "EURUSD=X": 1791349200,
+    "GBPUSD=X": 1791349200,
+    "USDJPY=X": 1791349200,
+    "USDCHF=X": 1791349200,
+    "AUDUSD=X": 1791349200,
+    "USDCAD=X": 1791349200,
+    "NZDUSD=X": 1791349200,
+    "EURJPY=X": 1791349200,
+    "EURGBP=X": 1791349200,
+    "GBPJPY=X": 1791349200,
+    "AUDJPY=X": 1791349200,
+    "CADJPY=X": 1791349200
   },
   "discrepancias": []
 }
