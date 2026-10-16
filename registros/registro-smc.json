@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "smc",
   "inicio": "2026-09-08T01:08:33.729Z",
-  "ultima": "2026-10-16T20:57:55.266Z",
-  "pasadas": 152,
+  "ultima": "2026-10-16T23:28:55.433Z",
+  "pasadas": 153,
   "ajustes": {
     "minHueco": 0.2,
     "minEmpuje": 2.5,
@@ -556,9 +556,9 @@
   ],
   "vistoHasta": {
     "EURUSD=X": 1792180800,
-    "GBPUSD=X": 1792180800,
-    "USDJPY=X": 1792180800,
-    "USDCHF=X": 1792180800,
+    "GBPUSD=X": 1792184400,
+    "USDJPY=X": 1792177200,
+    "USDCHF=X": 1792177200,
     "AUDUSD=X": 1792180800,
     "USDCAD=X": 1792180800,
     "NZDUSD=X": 1792180800,
