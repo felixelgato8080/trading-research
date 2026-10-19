@@ -2,8 +2,8 @@
   "version": 2,
   "nombre": "smc",
   "inicio": "2026-09-08T01:08:33.729Z",
-  "ultima": "2026-10-19T04:29:02.683Z",
-  "pasadas": 164,
+  "ultima": "2026-10-19T12:57:17.048Z",
+  "pasadas": 165,
   "ajustes": {
     "minHueco": 0.2,
     "minEmpuje": 2.5,
@@ -17,7 +17,8 @@
   },
   "costeBps": 1,
   "vigencia": 60,
-  "pendientes": [
+  "pendientes": [],
+  "abiertas": [
     {
       "par": "EURGBP=X",
       "direccion": "CORTO",
@@ -28,10 +29,12 @@
       "apuntada": "2026-10-19T04:29:02.683Z",
       "tSeñal": 1792382400,
       "caducaEn": 1792598400,
-      "velasDeRetraso": 0
+      "velasDeRetraso": 0,
+      "abierta": "2026-10-19T12:57:17.048Z",
+      "tEntrada": 1792386000,
+      "entradaReal": 0.8427000045776367
     }
   ],
-  "abiertas": [],
   "cerradas": [
     {
       "par": "AUDUSD=X",
@@ -555,32 +558,32 @@
     }
   ],
   "vistoHasta": {
-    "EURUSD=X": 1792382400,
-    "GBPUSD=X": 1792382400,
-    "USDJPY=X": 1792382400,
-    "USDCHF=X": 1792382400,
-    "AUDUSD=X": 1792382400,
-    "USDCAD=X": 1792382400,
-    "NZDUSD=X": 1792382400,
-    "EURJPY=X": 1792382400,
-    "EURGBP=X": 1792382400,
-    "EURCHF=X": 1792382400,
-    "EURAUD=X": 1792382400,
-    "EURCAD=X": 1792382400,
-    "GBPJPY=X": 1792382400,
-    "GBPCHF=X": 1792382400,
-    "GBPAUD=X": 1792382400,
-    "GBPCAD=X": 1792382400,
-    "AUDJPY=X": 1792382400,
-    "AUDNZD=X": 1792382400,
-    "AUDCAD=X": 1792382400,
-    "AUDCHF=X": 1792382400,
-    "CADJPY=X": 1792382400,
-    "CADCHF=X": 1792382400,
-    "CHFJPY=X": 1792382400,
-    "NZDJPY=X": 1792382400,
-    "NZDCAD=X": 1792382400,
-    "NZDCHF=X": 1792382400
+    "EURUSD=X": 1792411200,
+    "GBPUSD=X": 1792411200,
+    "USDJPY=X": 1792411200,
+    "USDCHF=X": 1792411200,
+    "AUDUSD=X": 1792411200,
+    "USDCAD=X": 1792411200,
+    "NZDUSD=X": 1792411200,
+    "EURJPY=X": 1792411200,
+    "EURGBP=X": 1792411200,
+    "EURCHF=X": 1792411200,
+    "EURAUD=X": 1792411200,
+    "EURCAD=X": 1792411200,
+    "GBPJPY=X": 1792411200,
+    "GBPCHF=X": 1792411200,
+    "GBPAUD=X": 1792411200,
+    "GBPCAD=X": 1792411200,
+    "AUDJPY=X": 1792411200,
+    "AUDNZD=X": 1792411200,
+    "AUDCAD=X": 1792411200,
+    "AUDCHF=X": 1792411200,
+    "CADJPY=X": 1792411200,
+    "CADCHF=X": 1792411200,
+    "CHFJPY=X": 1792411200,
+    "NZDJPY=X": 1792411200,
+    "NZDCAD=X": 1792411200,
+    "NZDCHF=X": 1792411200
   },
   "discrepancias": []
 }
